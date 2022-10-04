@@ -1,0 +1,12 @@
+name: calval-CSLC
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.9
+  - ipython
+  - matplotlib
+  - numpy
+  - gdal>=3
+  - isce2
+  - pandas
