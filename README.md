@@ -132,12 +132,14 @@ Schubert, A., Miranda, N., Geudtner, D., and Small, D. (2017). Sentinel-1A/B com
 Yunjun, Z., Fattahi, H., Pi, X., Rosen, P., Simons, M., Agram, P., and Aoki, Y. (2022). Range Geolocation Accuracy of C-/L-Band SAR and its Implications for Operational Stack Coregistration. IEEE Transactions on Geoscience and Remote Sensing, 60, 1-19, https://doi.org/10.1109/TGRS.2022.3168509
 
 
-## Contributors
+## Key Contributors
 
-Grace Bato
+Jinwoo Kim
+<br />
+Liang Kang
+<br />
+M Grace Bato
 <br />
 Zhong Lu
-<br />
-Jinwoo Kim
 <br />
 Simran Sangha
