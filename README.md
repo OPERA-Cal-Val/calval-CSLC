@@ -138,6 +138,6 @@ Grace Bato
 <br />
 Zhong Lu
 <br />
-Jin Woo Kim
+Jinwoo Kim
 <br />
 Simran Sangha
