@@ -128,9 +128,13 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# collections folder
+# run folders
 collections/
 t064_135523_iw2/
 pngs/
 ipynb/
 data/
+ALE.csv
+ALE_withDeramp.csv
+*.png
+*.log
