@@ -1,0 +1,18 @@
+# vim: set filetype=yaml: 
+  look_dir: right 
+  date_group: 
+     date_start: 20210301 
+  time_group: 
+      time: "01:50:00" 
+  weather_model: GMAO
+  aoi_group: 
+    station_file: used_CRs.csv
+
+  height_group: 
+    height_levels: 0 50 100 500 1000  
+  los_group: 
+    ray_trace: True 
+    zref: 500 
+    orbit_file: orbit/S1B_OPER_AUX_POEORB_OPOD_20210321T111550_V20210228T225942_20210302T005942.EOF
+  runtime_group: 
+    verbose: True 

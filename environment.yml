@@ -1,4 +1,4 @@
-name: calval_CSLC
+name: calval-CSLC_dev
 channels:
  - conda-forge
  - anaconda
@@ -39,5 +39,8 @@ dependencies:
  - papermill
  - pytest
  - pytest-cov
+ - seaborn
  - setuptools
  - setuptools_scm
+ - pip:
+   - pdfkit
