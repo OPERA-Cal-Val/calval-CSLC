@@ -7,7 +7,7 @@ import numpy as np
 import os, time
 import subprocess
 import matplotlib.pyplot as plt
-from src.RLE_utils import hdf_read, convert_to_slcvrt, array2raster, simple_SBAS_stats
+from src.RLE_utils import hdf_read, convert_to_slcvrt, array2raster, simple_SBAS_stats, mintpy_SBAS_stats
 
 def createParser(iargs = None):
     '''Commandline input parser'''
@@ -34,6 +34,8 @@ def createParser(iargs = None):
             default=20, type=int, help='number of windows processed in a chunk along columns (default: 20')
     parser.add_argument("--snr", dest="snr",
             default=10, type=int, help='SNR threshold to be used for SBAS approach (default: 10)')
+    parser.add_argument("--tsmethod", dest="tsmethod",
+            default='mintpy', type=str, help='method for time-series inversion: mintpy (default), sbas (simple SBAS method)')
     parser.add_argument("--pngfile", dest='png',
             default='RLE_ts.png',type=str, help='burst ID to be processed (default: RLE_ts.png)')
     parser.add_argument("--csvfile", dest='csv',             
@@ -61,6 +63,8 @@ def run(inps):
     numberWindowAcrossInChunk = inps.nwac   #The number of windows processed in a batch/chunk, along columns
 
     snr_th = inps.snr
+
+    tsmethod = inps.tsmethod
 
     #parameters for gpu processing
     num_gpu = subprocess.getoutput('nvidia-smi --list-gpus | wc -l')
@@ -152,8 +156,11 @@ def run(inps):
     list_azoff = df['ref'] + '_' + df['sec'] + '.az_off.tif'
     list_snr = df['ref'] + '_' + df['sec'] + '.snr.tif'
 
-    rg_avg, rg_std, _ = simple_SBAS_stats(list_rgoff,list_snr,out_dir,snr_th)
-    az_avg, az_std, _ = simple_SBAS_stats(list_azoff,list_snr,out_dir,snr_th)
+    if ( tsmethod == 'sbas'):
+        rg_avg, rg_std, _ = simple_SBAS_stats(list_rgoff,list_snr,out_dir,snr_th)
+        az_avg, az_std, _ = simple_SBAS_stats(list_azoff,list_snr,out_dir,snr_th)
+    else:
+        rg_avg, rg_std, az_avg, az_std = mintpy_SBAS_stats(list_rgoff,list_azoff,list_snr,out_dir,snr_th) 
 
     df = None
     _ = {'date':days, 'rg_avg':rg_avg, 'rg_std':rg_std, 'az_avg':az_avg, 'az_std':az_std}
