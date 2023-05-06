@@ -244,7 +244,7 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     load_data.main('-t smallbaselineApp.cfg'.split())
 
     #time-series inversion with MintPy
-    tsRgFile = 'timeseriesRg.h5'  #time series hn5 file in range
+    tsRgFile = 'timeseriesRg.h5'  #time series h5 file in range
     tsAzFile = 'timeseriesAz.h5'  #time series h5 file in azimuth
 
     cmd = f'inputs/offsetStack.h5 -i rangeOffset -w no --min-norm-phase --md offsetSNR --mt {snr_thr} -o {tsRgFile} residualInvRg.h5 numInvOffsetRg.h5'
