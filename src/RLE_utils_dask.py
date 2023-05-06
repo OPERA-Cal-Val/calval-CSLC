@@ -3,9 +3,8 @@ import h5py
 import os
 import datetime as dt
 import numpy as np
-from mintpy.utils import readfile
-from mintpy.cli import ifgram_inversion, load_data
-import pandas as pd
+import dask.array as da
+import math
 
 def hdf_read(input_hdf):
 
@@ -131,9 +130,14 @@ def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
         off[snr<snr_thr] = np.nan
         off_3d[:,:,ii] = off
 
+    n_chunks = 36  #for parallel processing
+    da_off_3d = da.from_array(off_3d,chunks=(math.ceil(off_3d.shape[0]/n_chunks),*off_3d.shape[1:]))
+
     #SBAS inversion for time-series estimates
-    ts_off = np.einsum('ijk,lk->ijl', off_3d, invD)
-    norm_res_off = np.sqrt(np.sum((off_3d - np.einsum('ijk,lk->ijl', ts_off, D))**2,axis = 2))  #L2 norm residual
+    da_ts_off = da.einsum('ijk,lk->ijl', da_off_3d, invD)
+    da_norm_res_off = da.sqrt(da.sum((da_off_3d - da.einsum('ijk,lk->ijl', da_ts_off, D))**2,axis = 2))
+
+    ts_off, norm_res_off = da.compute(da_ts_off,da_norm_res_off)
 
     #removing pixels with a large L2 norm residual
     normResThr = np.nanmin(norm_res_off) + (np.nanmax(norm_res_off) 
