@@ -6,12 +6,15 @@ channels:
 dependencies:
  - python>=3.9
  - pip
+ - boto3
  - dateparser
  - dask>=1.0
  - dask-jobqueue>=0.3
  - folium
+ - fsspec
  - geopandas
  - gdal>=3
+ - h5py
  - ipympl
  - isce3
  - lxml
@@ -26,6 +29,7 @@ dependencies:
  - requests
  - ruamel.yaml
  - scipy
+ - s3fs
  - yamale
  # for testing and distribution
  - flake8
