@@ -10,6 +10,7 @@ dependencies:
  - dask>=1.0
  - dask-jobqueue>=0.3
  - folium
+ - fsspec
  - geopandas
  - gdal>=3
  - ipympl
@@ -20,12 +21,14 @@ dependencies:
  - netcdf4
  - numpy
  - pandas
+ - pymap3d
  - pysolid
  - pyproj
  - rasterio
  - requests
  - ruamel.yaml
  - scipy
+ - s3fs
  - yamale
  # for testing and distribution
  - flake8

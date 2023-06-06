@@ -1,34 +1,21 @@
 import numpy as np
 import math
 import scipy
-
+import isce3
 
 '''
 Collection utility functions to find the corner reflectors based on intensity peak
 '''
 
 def oversample_slc(slc,sampling=1,y=None,x=None):
-    '''
-    oversample the SLC data
-        sampling: oversampling factor
-    '''
-    
     if y is None:
         y = np.arange(slc.shape[0])
     if x is None:
         x = np.arange(slc.shape[1])
 
-    rows, cols = np.shape(slc)
-    _slc = np.fft.fftshift(np.fft.fft2(slc))
-    min_row = math.ceil(rows * sampling / 2 - rows / 2)
-    max_row = min_row + rows
-    min_col = math.ceil(cols * sampling / 2 - cols / 2)
-    max_col = min_col + cols
+    [rows, cols] = np.shape(slc)
     
-    slc_padding = np.zeros((rows * sampling, cols * sampling), dtype=_slc.dtype)    #zero padding
-    slc_padding[min_row:max_row,min_col:max_col] = _slc
-    slc_ = np.fft.fftshift(slc_padding)
-    slcovs = np.fft.ifft2(slc_) * sampling * sampling
+    slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
 
     y_orign_step = y[1]-y[0]
     y_ovs_step = y_orign_step/sampling
@@ -92,3 +79,8 @@ def interpolate_correction_layers(xcoor, ycoor, data, method):
 
     return np.flipud(data_resampl)
 
+def enu2rdr(inc_angle,az_angle):
+    rng = np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle)) * -1 + np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle)) + np.cos(np.deg2rad(inc_angle))
+    azi = np.sin(np.deg2rad(az_angle - 90)) * -1 + np.cos(np.deg2rad(az_angle - 90)) * 1
+
+    return rng, azi
