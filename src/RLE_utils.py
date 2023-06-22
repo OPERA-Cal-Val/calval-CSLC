@@ -6,14 +6,14 @@ import numpy as np
 from mintpy.utils import readfile
 from mintpy.cli import ifgram_inversion, load_data
 import pandas as pd
+import fsspec
 
 def hdf_read(input_hdf):
 
-    DATA_ROOT = 'science/SENTINEL1'
-    grid_path = f'{DATA_ROOT}/CSLC/grids'
-    metadata_path = f'{DATA_ROOT}/CSLC/metadata'
-    burstmetadata_path = f'{DATA_ROOT}/CSLC/metadata/processing_information/s1_burst_metadata'
-    id_path = f'{DATA_ROOT}/identification'
+    grid_path = f'data'
+    metadata_path = f'metadata'
+    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
+    id_path = f'identification'
     pol = 'VV'
 
     with h5py.File(input_hdf,'r') as h5:
@@ -24,9 +24,57 @@ def hdf_read(input_hdf):
         epsg = h5[f'{grid_path}/projection'][()].astype(int)
         slc = h5[f'{grid_path}/{pol}'][:]
         sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+        dims = h5[f'{burstmetadata_path}/shape'][:]
+        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+        center_lon, center_lat = h5[f'{burstmetadata_path}/center'] 
         date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
+
+        #deramping and adding flattening phase back
+        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
+        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]        
+        ramp = np.exp(1j*azimuth_carrier_phase)
+        flat_phase = np.exp(1j*flatten_phase)
+        slc = slc*np.conj(ramp)*np.conj(flat_phase)
+        
     return xcoor, ycoor, dx, dy, epsg, slc, date
 
+def hdf_stream(path_h5):
+
+    s3f = fsspec.open(path_h5, mode='rb', anon=True, default_fill_cache=False)
+    print(f'streaming: {path_h5}')
+
+    grid_path = f'data'
+    metadata_path = f'metadata'
+    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
+    id_path = f'identification'
+    pol = 'VV'
+
+    with h5py.File(s3f.open(),'r') as h5:
+        xcoor = h5[f'{grid_path}/x_coordinates'][:]
+        ycoor = h5[f'{grid_path}/y_coordinates'][:]
+        dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+        dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+        epsg = h5[f'{grid_path}/projection'][()].astype(int)
+        slc = h5[f'{grid_path}/{pol}'][:]
+        sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+        dims = h5[f'{burstmetadata_path}/shape'][:]
+        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str)
+        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+        center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+        date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
+
+        #deramping and adding flattening phase back
+        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
+        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]
+        ramp = np.exp(1j*azimuth_carrier_phase)
+        flat_phase = np.exp(1j*flatten_phase)
+        slc = slc*np.conj(ramp)*np.conj(flat_phase)
+
+    return xcoor, ycoor, dx, dy, epsg, slc, date 
+    
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
      os.makedirs(outdir,exist_ok=True)
@@ -244,7 +292,7 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     load_data.main('-t smallbaselineApp.cfg'.split())
 
     #time-series inversion with MintPy
-    tsRgFile = 'timeseriesRg.h5'  #time series h5 file in range
+    tsRgFile = 'timeseriesRg.h5'  #time series hn5 file in range
     tsAzFile = 'timeseriesAz.h5'  #time series h5 file in azimuth
 
     cmd = f'inputs/offsetStack.h5 -i rangeOffset -w no --min-norm-phase --md offsetSNR --mt {snr_thr} -o {tsRgFile} residualInvRg.h5 numInvOffsetRg.h5'

@@ -79,8 +79,45 @@ def interpolate_correction_layers(xcoor, ycoor, data, method):
 
     return np.flipud(data_resampl)
 
-def enu2rdr(inc_angle,az_angle):
-    rng = np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle)) * -1 + np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle)) + np.cos(np.deg2rad(inc_angle))
-    azi = np.sin(np.deg2rad(az_angle - 90)) * -1 + np.cos(np.deg2rad(az_angle - 90)) * 1
+def en2rdr(E, N, az_angle, inc_angle):
+    rng = E * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle - 90)) * -1 + N * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle - 90)) 
+    grng = rng / np.sin((np.deg2rad(inc_angle)))
+    azi = E * np.sin(np.deg2rad(az_angle - 90)) * -1 + N * np.cos(np.deg2rad(az_angle - 90))
 
-    return rng, azi
+    return grng, azi
+
+def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
+    '''
+    Estimate the signal-to-noise ration (SNR) of the peak
+    in the input image patch
+    Parameter
+    ---------
+    img: numpy.ndarray
+        SLC image patch to calculate the SNR
+    cutout: float
+        Cutout ratio of high and low part of the signal to cutoff
+    Returns
+    -------
+    snr_peak_db: float
+        SNR of the peak in decibel (db)
+    '''
+
+    power_arr = img.real ** 2 + img.imag ** 2
+
+    # build up the mask array
+    thres_low = np.nanpercentile(power_arr, cutoff_percentile)
+    thres_high = np.nanpercentile(power_arr, 100 - cutoff_percentile)
+    mask_threshold = np.logical_and(power_arr < thres_low,
+                                    power_arr > thres_high)
+    mask_invalid_pixel = np.logical_and(power_arr <= 0.0,
+                                        np.isnan(power_arr))
+    ma_power_arr = np.ma.masked_array(power_arr,
+                                      mask=np.logical_and(mask_threshold,
+                                                          mask_invalid_pixel))
+
+    peak_power = np.nanmax(power_arr)
+    mean_background_power = np.mean(ma_power_arr)
+
+    snr_peak_db = np.log10(peak_power / mean_background_power) * 10.0
+
+    return snr_peak_db
