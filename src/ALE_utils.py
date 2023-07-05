@@ -17,7 +17,7 @@ def oversample_slc(slc,sampling=1,y=None,x=None):
     
     try:
         slcovs = isce3.cal.point_target_info.oversample(slc,sampling)
-    except ImportError:
+    except AttributeError:
         slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
 
     y_orign_step = y[1]-y[0]
