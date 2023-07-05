@@ -44,6 +44,11 @@ def main():
     sample_bursts = ['t064_135523_iw2', 't071_151224_iw2']
     savedir = '/Users/bato/work/OPERA/CSLC/CalVal/TESTPARALLEL'
 
+    # Burst parameters
+    snr_threshold = 15
+    solidtide = 'True'
+    ovsFactor = 128
+
     # read list of bursts used for validation
     validation_bursts = Path('validation_data/validation_bursts.csv')
     if validation_bursts.is_file():
@@ -73,11 +78,6 @@ def main():
         # Start runtime evaluation
         start = timeit.default_timer()
 
-        # Burst parameters
-        snr_threshold = 15
-        solidtide = 'True'
-        ovsFactor = 128
-
         # Create folders
         os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/pngs', exist_ok=True)
         os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/ipynbs', exist_ok=True)
@@ -101,7 +101,7 @@ def main():
         # # For debugging
         # print(list(map(testparallel,params)))
         
-        print(f'Number of CPUs your computer has: {os.cpu_count()}')
+        print(f'Number of CPUs your computer have: {os.cpu_count()}')
         cpuworkers = int(os.cpu_count()/4)
         print(f'Using {cpuworkers} CPUs for this processing.')
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpuworkers) as executor:
