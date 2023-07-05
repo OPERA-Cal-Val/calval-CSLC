@@ -15,7 +15,10 @@ def oversample_slc(slc,sampling=1,y=None,x=None):
 
     [rows, cols] = np.shape(slc)
     
-    slcovs = isce3.cal.point_target_info.oversample(slc,sampling)
+    try:
+        slcovs = isce3.cal.point_target_info.oversample(slc,sampling)
+    except ImportError:
+        slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
 
     y_orign_step = y[1]-y[0]
     y_ovs_step = y_orign_step/sampling
