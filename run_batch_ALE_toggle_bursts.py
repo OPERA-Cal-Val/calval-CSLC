@@ -12,7 +12,9 @@ warnings.filterwarnings('ignore')
 
 # Specify valid burst(s)
 # Default is to loop through all
-sample_bursts = ['t064_135523_iw2']
+sample_bursts = ['t064_135523_iw2', 't071_151224_iw2']
+savedir = '/Users/bato/work/OPERA/CSLC/CalVal/'
+ovsFactor = 128
 
 # read list of bursts used for validation
 validation_bursts = Path('validation_data/validation_bursts.csv')
@@ -50,10 +52,11 @@ for burst_index, burst_row in burstId_df.iterrows():
             cslc_static_url = val_row['cslc_static_url']
             burst_id = val_row['burst_id']
             cr_network = burst_cr_network
-            save_dir = burst_cr_network
+            save_dir = f'{savedir}/{burst_cr_network}/{burst_id}'
             snr_threshold = 15
             solidtide = 'True'
             cslc_date = val_row['date']
+            ovsFactor = ovsFactor
 
             # Create folders
             os.makedirs(f'{save_dir}/pngs', exist_ok=True)
@@ -71,7 +74,7 @@ for burst_index, burst_row in burstId_df.iterrows():
 
             # Run the ALE for each date
             print(f'Processing AO ({cr_network}) burst ({burst_id}), for date ({cslc_date})')
-            pm.execute_notebook('ALE_COMPASS_Stream.ipynb',
+            pm.execute_notebook('ALE_Stream_gamma.ipynb',
                         f'{save_dir}/ipynbs/ALE_COMPASS_{burst_id}_{cslc_date}.ipynb',
                         parameters={'cslc_url': cslc_url,
                                     'cslc_static_url': cslc_static_url,
@@ -80,8 +83,9 @@ for burst_index, burst_row in burstId_df.iterrows():
                                     'date': cslc_date, 
                                     'snr_threshold': snr_threshold, 
                                     'solidtide': solidtide,
-                                    'cr_network': cr_network},
-                        kernel_name='calval-CSLC')
+                                    'cr_network': cr_network,
+                                    'ovsFactor': ovsFactor},
+                        kernel_name='calval_CSLC')
     
     # End runtime evaluation
     stop = timeit.default_timer()
