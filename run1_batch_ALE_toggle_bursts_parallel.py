@@ -43,7 +43,7 @@ def run_papermill(p):
     else:
         solidtide='False'
     ovsFactor = p[6]
-    save_dir = f'{p[-1]}/{cr_network}/{burst_id}'
+    save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
 
     # Run the ALE for each date via papermill
     pm.execute_notebook('ALE_template_gamma.ipynb',
@@ -67,7 +67,7 @@ def download_crdata(p):
     burst_id = p[1]
     cslc_url = p[2]
     cr_network = p[4]
-    save_dir = f'{p[-1]}/{cr_network}/{burst_id}'
+    save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
     sensing_time = dt.datetime.strptime(cslc_url.split('/')[-1].split('_')[-3], '%Y%m%dT%H%M%SZ').strftime('%Y-%m-%d+%H\u0021%M')
 
     print(f'Downloading crdata_{burst_id.upper()}_{date}.csv')

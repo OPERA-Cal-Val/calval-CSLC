@@ -30,7 +30,7 @@ def run_papermill(p):
     # Set Parameters
     burst_id = p[0]
     cr_network = p[1]
-    save_dir = f'{p[-1]}/{cr_network}/{burst_id}'
+    save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
     print(save_dir)
     print(burst_id)
     # Run the ALE for each date via papermill
