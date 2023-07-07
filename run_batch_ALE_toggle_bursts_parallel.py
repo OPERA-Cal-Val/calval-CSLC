@@ -24,8 +24,6 @@ def createParser(iargs = None):
                          required=True, nargs='+', help="List of burst_ids to process, ['t064_135523_iw2', 't071_151224_iw2'] ")
     parser.add_argument("--snr", dest="snr",
                          default=15, type=int, help='Signal-to-noise ratio threshold to remove corner reflectors outliers (default:15)')    
-    parser.add_argument("--solidtide", dest="solidtide",
-                         default='False', type=str, help='Correct for solid earth tides (True if yes, False if no)')
     parser.add_argument("--ovsFactor", dest="ovsFactor",
                          default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
     parser.add_argument("--cpuworkers", dest="cpuworkers",
@@ -40,8 +38,11 @@ def run_papermill(p):
     cslc_static_url = p[3]
     cr_network = p[4]
     snr_threshold = p[5]
-    solidtide = p[6]
-    ovsFactor = p[7]
+    if cr_network == 'Rosamond':
+        solidtide='True'
+    else:
+        solidtide='False'
+    ovsFactor = p[6]
     save_dir = f'{p[-1]}/{cr_network}/{burst_id}'
 
     # Run the ALE for each date via papermill
@@ -88,9 +89,6 @@ def download_crdata(p):
         crfile.write(res.content)
         crfile.flush()
     
-    # # Pause a bit
-    # time.sleep(3)
-
     return
 
 def main(inps):
@@ -99,7 +97,6 @@ def main(inps):
     sample_bursts = inps.burst_ids
     savedir = inps.savedir
     snr_threshold = inps.snr
-    solidtide = inps.solidtide
     ovsFactor = inps.ovsFactor
     cpuworkers = inps.cpuworkers
 
@@ -152,10 +149,7 @@ def main(inps):
         for val_index, val_row in validation_bursts_df.iterrows():
             if val_row['burst_id'] == burstId:
                 # Set parameters
-                params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,solidtide,ovsFactor,savedir])
-        
-        # # For debugging
-        # print(list(map(testparallel,params)))
+                params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,ovsFactor,savedir])
         
         print(f'Number of CPUs your computer have: {os.cpu_count()}')
         print(f'Using {cpuworkers} CPUs for this processing.')
@@ -181,6 +175,6 @@ if __name__ == '__main__':
     inps = createParser()
 
     print("Running ALE now")
-   
-    # Run the main
+    
+    # Run the main function
     main(inps)
