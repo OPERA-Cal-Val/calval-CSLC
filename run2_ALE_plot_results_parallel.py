@@ -34,7 +34,7 @@ def run_papermill(p):
     print(save_dir)
     print(burst_id)
     # Run the ALE for each date via papermill
-    pm.execute_notebook('plot_ALE_results_template.ipynb',
+    pm.execute_notebook('util_notebooks/plot_ALE_results_template.ipynb',
                 f'{save_dir}/ipynbs/ALE_results_{cr_network}_{burst_id.upper()}.ipynb',
                 parameters={'save_dir': save_dir,
                             'burst_id': burst_id,

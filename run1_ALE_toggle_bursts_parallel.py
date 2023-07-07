@@ -46,7 +46,7 @@ def run_papermill(p):
     save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
 
     # Run the ALE for each date via papermill
-    pm.execute_notebook('ALE_template_gamma.ipynb',
+    pm.execute_notebook('./util_notebooks/ALE_template_gamma.ipynb',
                 f'{save_dir}/ipynbs/ALE_{burst_id.upper()}_{cslc_date}.ipynb',
                 parameters={'cslc_url': cslc_url,
                             'cslc_static_url': cslc_static_url,
