@@ -23,7 +23,7 @@ def createParser(iargs = None):
     parser.add_argument("--burst_ids", dest="burst_ids",
                          required=True, nargs='+', help="List of burst_ids to process, ['t064_135523_iw2', 't071_151224_iw2'] ")
     parser.add_argument("--nprocs", dest="nprocs",
-                         default=10, type=int, help='Number of processes to run (default: 10)')
+                         default=2, type=int, help='Number of processes to run (default: 2)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):

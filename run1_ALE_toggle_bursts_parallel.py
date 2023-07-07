@@ -22,12 +22,16 @@ def createParser(iargs = None):
                          required=True, type=str, help='Save directory')
     parser.add_argument("--burst_ids", dest="burst_ids",
                          required=True, nargs='+', help="List of burst_ids to process, ['t064_135523_iw2', 't071_151224_iw2'] ")
+    parser.add_argument("--startDate", dest="startDate",
+                         default='20140101', type=str, help="Start date of ALE evaluation")
+    parser.add_argument("--endDate", dest="endDate",
+                         default=dt.datetime.today().strftime('%Y%m%d'), type=str, help="Start date of ALE evaluation")
     parser.add_argument("--snr", dest="snr",
                          default=15, type=int, help='Signal-to-noise ratio threshold to remove corner reflectors outliers (default:15)')    
     parser.add_argument("--ovsFactor", dest="ovsFactor",
                          default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
     parser.add_argument("--nprocs", dest="nprocs",
-                         default=10, type=int, help='Number of processes to run (default: 10)')
+                         default=2, type=int, help='Number of processes to run (default: 2)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -77,10 +81,10 @@ def download_crdata(p):
         res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=uavsar')
     elif cr_network=='Oklahoma':
         # Download corner reflector data from UAVSAR/NISAR based on the date of the CSLC product
-        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={str(sensing_time)}&project=nisar')
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=nisar')
     elif cr_network=='Alaska':
         # Download corner reflector data from NISAR based on the date of the CSLC product
-        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={str(sensing_time)}&project=alaska')
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=alaska')
     else:
         raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
     
@@ -99,6 +103,8 @@ def main(inps):
     snr_threshold = inps.snr
     ovsFactor = inps.ovsFactor
     nprocs = inps.nprocs
+    startDate = inps.startDate
+    endDate = inps.endDate
 
     # read list of bursts used for validation
     validation_bursts = Path('validation_data/validation_bursts.csv')
@@ -147,7 +153,8 @@ def main(inps):
 
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
-            if val_row['burst_id'] == burstId:
+            if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
+                and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,ovsFactor,savedir])
         
