@@ -1,4 +1,4 @@
-name: calval_CSLC
+name: calval_CSLC_ALE
 channels:
  - conda-forge
  - anaconda

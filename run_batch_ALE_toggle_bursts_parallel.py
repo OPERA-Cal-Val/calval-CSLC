@@ -4,6 +4,9 @@ import argparse
 import os
 import warnings
 from pathlib import Path
+import datetime as dt
+import requests
+import time
 
 import geopandas as gpd
 import pandas as pd
@@ -43,7 +46,7 @@ def run_papermill(p):
 
     # Run the ALE for each date via papermill
     pm.execute_notebook('ALE_template_gamma.ipynb',
-                f'{save_dir}/ipynbs/ALE_{burst_id}_{cslc_date}.ipynb',
+                f'{save_dir}/ipynbs/ALE_{burst_id.upper()}_{cslc_date}.ipynb',
                 parameters={'cslc_url': cslc_url,
                             'cslc_static_url': cslc_static_url,
                             'save_dir': save_dir,
@@ -56,6 +59,39 @@ def run_papermill(p):
                 kernel_name='calval_CSLC')
     
     return (f'Finished processing AO ({cr_network}) burst ({burst_id}), for date ({cslc_date})')
+
+def download_crdata(p):
+    # Set Parameters
+    date = p[0]
+    burst_id = p[1]
+    cslc_url = p[2]
+    cr_network = p[4]
+    save_dir = f'{p[-1]}/{cr_network}/{burst_id}'
+    sensing_time = dt.datetime.strptime(cslc_url.split('/')[-1].split('_')[-3], '%Y%m%dT%H%M%SZ').strftime('%Y-%m-%d+%H\u0021%M')
+
+    print(f'Downloading crdata_{burst_id.upper()}_{date}.csv')
+    # Get date and download
+    if cr_network=='Rosamond':
+        # Download corner reflector data from UAVSAR/NISAR based on the date of the CSLC product
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=uavsar')
+    elif cr_network=='Oklahoma':
+        # Download corner reflector data from UAVSAR/NISAR based on the date of the CSLC product
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={str(sensing_time)}&project=nisar')
+    elif cr_network=='Alaska':
+        # Download corner reflector data from NISAR based on the date of the CSLC product
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={str(sensing_time)}&project=alaska')
+    else:
+        raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
+    
+    # Write the crdata to file
+    with open(f'{save_dir}/crdata/crdata_{burst_id.upper()}_{date}.csv', 'wb') as crfile:
+        crfile.write(res.content)
+        crfile.flush()
+    
+    # # Pause a bit
+    # time.sleep(3)
+
+    return
 
 def main(inps):
     # Specify valid burst(s)
@@ -83,7 +119,9 @@ def main(inps):
 
     # access table of all S3 links
     validation_csv = Path('validation_data/validation_table.csv')
-    df = pd.read_csv(validation_csv)
+    df_ = pd.read_csv(validation_csv)
+    df = df_.drop_duplicates(subset=['burst_id', 'date'])
+
     validation_bursts_df = gpd.GeoDataFrame(
         df.loc[:, [c for c in df.columns if c != "geometry"]],
         geometry=gpd.GeoSeries.from_wkt(df["geometry"])
@@ -97,10 +135,10 @@ def main(inps):
         start = timeit.default_timer()
 
         # Create folders
-        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/pngs', exist_ok=True)
-        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/ipynbs', exist_ok=True)
-        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/summary', exist_ok=True)
-        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId}/crdata', exist_ok=True)
+        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId.upper()}/pngs', exist_ok=True)
+        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId.upper()}/ipynbs', exist_ok=True)
+        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId.upper()}/summary', exist_ok=True)
+        os.makedirs(f'{savedir}/{burst_cr_network}/{burstId.upper()}/crdata', exist_ok=True)
 
         # Check if file exist
         outcsv1 = f'ALE_{burst_cr_network}_{burstId}_allDates.csv'
@@ -120,8 +158,14 @@ def main(inps):
         # print(list(map(testparallel,params)))
         
         print(f'Number of CPUs your computer have: {os.cpu_count()}')
-        # cpuworkers = int(os.cpu_count()/4)
         print(f'Using {cpuworkers} CPUs for this processing.')
+
+        # Download CR data first
+        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+            executor.map(download_crdata,params)
+
+        # Run papermill
+        time.sleep(5)
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpuworkers) as executor:
             for result in executor.map(run_papermill,params):
                 print(result)
