@@ -26,8 +26,8 @@ def createParser(iargs = None):
                          default=15, type=int, help='Signal-to-noise ratio threshold to remove corner reflectors outliers (default:15)')    
     parser.add_argument("--ovsFactor", dest="ovsFactor",
                          default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
-    parser.add_argument("--cpuworkers", dest="cpuworkers",
-                         default=10, type=int, help='Number of CPUs to use (default: 10)')
+    parser.add_argument("--nprocs", dest="nprocs",
+                         default=10, type=int, help='Number of processes to run (default: 10)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -98,7 +98,7 @@ def main(inps):
     savedir = inps.savedir
     snr_threshold = inps.snr
     ovsFactor = inps.ovsFactor
-    cpuworkers = inps.cpuworkers
+    nprocs = inps.nprocs
 
     # read list of bursts used for validation
     validation_bursts = Path('validation_data/validation_bursts.csv')
@@ -152,7 +152,7 @@ def main(inps):
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,ovsFactor,savedir])
         
         print(f'Number of CPUs your computer have: {os.cpu_count()}')
-        print(f'Using {cpuworkers} CPUs for this processing.')
+        print(f'Using {nprocs} CPUs for this processing.')
 
         # Download CR data first
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
@@ -160,7 +160,7 @@ def main(inps):
 
         # Run papermill
         time.sleep(5)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpuworkers) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=nprocs) as executor:
             for result in executor.map(run_papermill,params):
                 print(result)
 

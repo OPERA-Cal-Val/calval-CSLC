@@ -22,8 +22,8 @@ def createParser(iargs = None):
                          required=True, type=str, help='Save directory')
     parser.add_argument("--burst_ids", dest="burst_ids",
                          required=True, nargs='+', help="List of burst_ids to process, ['t064_135523_iw2', 't071_151224_iw2'] ")
-    parser.add_argument("--cpuworkers", dest="cpuworkers",
-                         default=10, type=int, help='Number of CPUs to use (default: 10)')
+    parser.add_argument("--nprocs", dest="nprocs",
+                         default=10, type=int, help='Number of processes to run (default: 10)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -48,7 +48,7 @@ def main(inps):
     # Default is to loop through all
     sample_bursts = inps.burst_ids
     savedir = inps.savedir
-    cpuworkers = inps.cpuworkers
+    nprocs = inps.nprocs
 
     # read list of bursts used for validation
     validation_bursts = Path('validation_data/validation_bursts.csv')
@@ -72,9 +72,9 @@ def main(inps):
 
     print(params)     
     print(f'Number of CPUs your computer have: {os.cpu_count()}')
-    print(f'Using {cpuworkers} CPUs for this processing.')
+    print(f'Using {nprocs} CPUs for this processing.')
     # Run papermill
-    with concurrent.futures.ProcessPoolExecutor(max_workers=cpuworkers) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=nprocs) as executor:
         for result in executor.map(run_papermill,params):
             print(result)
 
