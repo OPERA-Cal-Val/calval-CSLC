@@ -15,17 +15,16 @@ Repository of tools intended to address the Cal/Val validation plan for the Leve
 6. [Contributors](#contributors)
 
 ## Setup
-There are two approaches to validate the OPERA Coregistered Single-Look Complex (<B>CSLC</B>) products and ensure the products meet the specified requirements: (1) Absolute Location Error (<B>ALE</B>) estimation through point-target analysis using corner reflectors network in North America and (2) Relative Location Error (<B>RLE</B>) estimation by cross-correlating pairs of OPERA CSLC products.
+There are two approaches to validate the OPERA Coregistered Single-Look Complex (<B>CSLC</B>) products and ensure the products meet the specified requirements which include the: (1) Absolute Location Error (<B>ALE</B>) estimation through point-target analysis using corner reflectors network in North America and (2) Relative Location Error (<B>RLE</B>) estimation by cross-correlating pairs of OPERA CSLC products.
 
-1. Installing the python dependencies to run the ALE notebooks
+### Building the environments using conda
+To run the ALE and RLE notebooks we need to create two separate environments and install relevant python dependencies. To install the dependencies, we recommend using __[Conda](https://docs.conda.io/en/latest/index.html)__, a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. Specifically, we recommend using __[Miniforge](https://github.com/conda-forge/miniforge)__, a conda environment manager that uses conda-forge as its default code repo. Alternatively, see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
+
+### Installing the python dependencies to run the ALE notebooks
 
 Refer to `environment_ALE.yml` for an explicit list of software dependencies.
 
-### Installing With Conda
-
-To install the dependencies we recommend creating a software environment using __[Conda](https://docs.conda.io/en/latest/index.html)__, a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. Specifically, we recommend using __[Miniforge](https://github.com/conda-forge/miniforge)__, a conda environment manager that uses conda-forge as its default code repo. Alternatively, see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
-
-Using conda to install dependencies:
+Use conda to install dependencies:
 ```
 conda install mamba
 mamba env create -f environment_ALE.yml
@@ -33,12 +32,12 @@ conda activate calval_CSLC_ALE
 python -m ipykernel install --user --name calval_CSLC_ALE
 ```
 
-2. Installing PyCuAmpcor and the python dependencies to run the RLE notebooks
+### Installing PyCuAmpcor and the python dependencies to run the RLE notebooks
 PyCuAmpcor is included in ISCE2, and can be compiled/installed by CMake or SCons, together with ISCE2 or as a standalone version. An installation guide can be found at [isce-framework](https://github.com/isce-framework/isce2#building-isce).
 
-Refer to `environment_RLE.yml` for an explicit list of software dependencies
+Refer to `environment_RLE.yml` for an explicit list of software dependencies.
 
-Using conda to install dependencies:
+Use conda to install dependencies:
 ```
 conda install mamba
 mamba env create -f environment_RLE.yml
