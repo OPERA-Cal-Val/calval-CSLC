@@ -3,6 +3,10 @@ import math
 import scipy
 import isce3
 import h5py
+import fsspec
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 
 '''
 Collection utility functions to find the corner reflectors based on intensity peak
@@ -51,6 +55,54 @@ def stream_cslc(s3f,pol):
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
     
     return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
+
+def get_s3path(cslc_static_url):
+    burst_id = cslc_static_url.split('/')[-1].split('_')[4]
+    buckt = cslc_static_url.split('/')[2]
+    prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+    client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+    result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
+    path = result.get('CommonPrefixes')[0].get('Prefix')
+    if path.split('/')[-2].split("_")[-1] == 'layers':
+        path_h5 = (f's3://{buckt}/{path}{path.split("/")[-2]}.h5')
+
+    return path_h5
+    
+def stream_static_layers(cslc_static_url):
+    try:
+        s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    except FileNotFoundError:
+        burst_id = cslc_static_url.split('/')[-1].split('_')[4]
+        print('The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
+        buckt = cslc_static_url.split('/')[2]
+        prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+        client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+        result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
+
+        path_h5 = []
+        for o in result.get('CommonPrefixes'):
+            path = o.get('Prefix')
+            if path.split('/')[-2].split("_")[-1] == 'layers':
+                path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
+        cslc_static_url = path_h5[0]
+        print(f'New static layer file: {cslc_static_url}')
+        s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    with h5py.File(s3f,'r') as h5:
+        try:
+            DATA_ROOT = 'science/SENTINEL1'
+            grid_path = f'{DATA_ROOT}/CSLC/grids'
+            static_grid_path = f'science/SENTINEL1/CSLC/grids/static_layers'
+            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]
+        except KeyError:
+            static_grid_path = f'data'
+            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]    
+
+    return incidence_angle, azimuth_angle
+    # return s3f
 
 def oversample_slc(slc,sampling=1,y=None,x=None):
     if y is None:
