@@ -74,7 +74,7 @@ def stream_static_layers(cslc_static_url):
 
     except FileNotFoundError:
         burst_id = cslc_static_url.split('/')[-1].split('_')[4]
-        print('The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
+        print(f'The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
         buckt = cslc_static_url.split('/')[2]
         prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
         client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
@@ -94,8 +94,8 @@ def stream_static_layers(cslc_static_url):
             DATA_ROOT = 'science/SENTINEL1'
             grid_path = f'{DATA_ROOT}/CSLC/grids'
             static_grid_path = f'science/SENTINEL1/CSLC/grids/static_layers'
-            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
-            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]
+            incidence_angle = h5[f'{static_grid_path}/incidence'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading'][:]
         except KeyError:
             static_grid_path = f'data'
             incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
