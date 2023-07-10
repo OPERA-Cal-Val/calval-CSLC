@@ -17,8 +17,6 @@ def createParser(iargs = None):
             default=10, type=int, help='SNR threshold to be used for SBAS approach (default: 10)')
     parser.add_argument("--tsmethod", dest="tsmethod",
             default='mintpy', type=str, help='method for time-series inversion: mintpy (default), sbas (simple SBAS method)')
-    parser.add_argument("--pngfile", dest='png',
-            default='RLE_ts.png',type=str, help='PNG file name for time-series RLE (default: RLE_ts.png)')
     parser.add_argument("--csvfile", dest='csv',             
             default='RLE_ts.csv',type=str, help='CSV file name for time-series RLE (default: RLE_ts.csv)')
     return parser.parse_args(args=iargs)
@@ -75,24 +73,6 @@ def run(inps):
     _ = {'date':days, 'rg_avg':rg_avg, 'rg_std':rg_std, 'az_avg':az_avg, 'az_std':az_std}
     df = pd.DataFrame.from_dict(_)
     df.to_csv(inps.csv, index=False)
-    df['date'] =  pd.to_datetime(df['date'])
-    df['date'].dt.strftime('%Y%m%d')
-
-    fig, ax = plt.subplots(2,1,figsize=(15,10),sharex=True)
-
-    ax[0].set_title('RLE in Ground Range (m)')
-    ax[0].axhspan(-0.5,0.5,color='red', alpha=0.05)    #OPERA requirements in ground range
-    ax[0].errorbar(df['date'],df['rg_avg'],df['rg_std'],marker='o',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0)
-    ax[0].set_ylim(-5,5)
-    ax[0].grid(axis='x',linestyle='--')
-
-    ax[1].set_title('RLE in Azimuth (m)')
-    ax[1].axhspan(-0.75,0.75,color='red', alpha=0.05)    #OPERA requirements in azimuth
-    ax[1].errorbar(df['date'],df['az_avg'],df['az_std'],marker='o',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0)
-    ax[1].set_xlabel('dates')
-    ax[1].set_ylim(-5,5)
-    ax[1].grid(axis='x',linestyle='--')
-    fig.savefig(inps.png,dpi=300,bbox_inches='tight')
 
 if __name__ == '__main__':
     # load arguments from command line
