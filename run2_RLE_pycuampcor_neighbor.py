@@ -84,7 +84,7 @@ def run(inps):
     
     out_dir = inps.out_dir
 
-    filelist = glob.glob(f'{cslc_dir}/2*slc')
+    filelist = sorted(glob.glob(f'{cslc_dir}/2*slc'))
     datels = []   #list of date
     for _ in filelist:
         datels.append(_.split('/')[-1][0:8])
