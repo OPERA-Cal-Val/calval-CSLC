@@ -70,7 +70,30 @@ def get_s3path(cslc_static_url):
             path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
 
     return path_h5
-    
+   
+def stream_static_layers(cslc_static_url):
+    try:
+        s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    except FileNotFoundError:
+        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+        print(f'New static layer file: {new_cslc_static_url}')
+        s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    with h5py.File(s3f,'r') as h5:
+        try:
+            DATA_ROOT = 'science/SENTINEL1'
+            grid_path = f'{DATA_ROOT}/CSLC/grids'
+            static_grid_path = f'science/SENTINEL1/CSLC/grids/static_layers'
+            incidence_angle = h5[f'{static_grid_path}/incidence'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading'][:]
+        except KeyError:
+            static_grid_path = f'data'
+            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]
+
+    return incidence_angle, azimuth_angle
+ 
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
      os.makedirs(outdir,exist_ok=True)
