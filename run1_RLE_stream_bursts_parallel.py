@@ -24,9 +24,13 @@ def createParser(iargs = None):
     parser.add_argument("--burst_ids", dest="burst_ids",
                          required=True, nargs='+', help="List of burst_ids to process, ['t064_135523_iw2', 't071_151224_iw2'] ")
     parser.add_argument("--startDate", dest="startDate",
-                         default='20140101', type=str, help="Start date of RLE evaluation")
+                         default='20140101', type=str, help="Start date of RLE evaluation (default: 20140101)")
     parser.add_argument("--endDate", dest="endDate",
-                         default=dt.datetime.today().strftime('%Y%m%d'), type=str, help="End date of RLE evaluation")
+                         default=dt.datetime.today().strftime('%Y%m%d'), type=str, help="End date of RLE evaluation (default: today)")
+    parser.add_argument("--valBursts", dest="valBursts",
+                         default='validation_data/validation_bursts.csv', type=str, help="list of validation bursts (default: validation_data/validation_bursts.csv)")
+    parser.add_argument("--valTable", dest="valTable",
+                         default='validation_data/validation_table.csv', type=str, help="validation table (default: validation_data/validation_table.csv)")
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
     return parser.parse_args(args=iargs)
@@ -52,9 +56,11 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
+    valBursts = inps.valBursts
+    valTable = inps.valTable
 
     # read list of bursts used for validation
-    validation_bursts = Path('validation_data/validation_bursts.csv')
+    validation_bursts = Path(valBursts)
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:
@@ -68,7 +74,7 @@ def main(inps):
         burstId_df = burstId_df[burstId_df['burst_id'].isin(sample_bursts)]
 
     # access table of all S3 links
-    validation_csv = Path('validation_data/validation_table.csv')
+    validation_csv = Path(valTable)
     df_ = pd.read_csv(validation_csv)
     df = df_.drop_duplicates(subset=['burst_id', 'date'])
 
