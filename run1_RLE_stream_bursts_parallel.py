@@ -6,6 +6,7 @@ import warnings
 from pathlib import Path
 import datetime as dt
 import time
+import numpy as np
 
 import fsspec
 
@@ -14,7 +15,7 @@ import pandas as pd
 import concurrent.futures
 import timeit
 warnings.filterwarnings('ignore')
-from src.RLE_utils import stream_cslc, convert_to_slcvrt
+from src.RLE_utils import stream_cslc, convert_to_slcvrt, stream_static_layers
 
 def createParser(iargs = None):
     '''Commandline input parser'''
@@ -96,6 +97,19 @@ def main(inps):
         for val_index, val_row in validation_bursts_df.iterrows():
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
+
+                en2rdr = f'en2rdr_{burstId}.csv'  #en2rdr file (incidence angle azimuth angle) for converting EN to RDR
+                path_en2rdr = Path(en2rdr) 
+                if path_en2rdr.is_file():
+                    pass
+                else:
+                    #reading static layer
+                    incidence_angle, azimuth_angle = stream_static_layers(val_row['cslc_static_url'])
+                    incidence_angle = np.nanmean(incidence_angle)
+                    azimuth_angle = np.nanmean(azimuth_angle)
+                    with open(en2rdr,'w') as f:
+                        f.write(f'{incidence_angle} {azimuth_angle}')
+
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],savedir])
 
