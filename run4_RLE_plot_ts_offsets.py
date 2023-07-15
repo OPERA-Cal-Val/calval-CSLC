@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 import matplotlib.pyplot as plt
+from src.ALE_utils import en2rdr
 
 def createParser(iargs = None):
     '''Commandline input parser'''
@@ -12,6 +13,8 @@ def createParser(iargs = None):
             required=True,type=str, help='CSV file name for time-series RLE')
     parser.add_argument("--pngfile", dest='png',
             required=True,type=str, help='PNG file name for time-series RLE')
+    parser.add_argument("--en2rdr", dest='en2rdr',
+             required=True,type=str, help='csv file of incidence and azimuth angle (unit: deg)') 
     return parser.parse_args(args=iargs)
 
 def if_pass(ts,requirement):
@@ -21,17 +24,28 @@ def if_pass(ts,requirement):
 
 def run(inps):
 
+    f = open(inps.en2rdr)
+    inc_angle, az_angle =f.read().split(' ')
+    inc_angle = float(inc_angle); az_angle = float(az_angle)
+
     df = pd.read_csv(inps.csv) 
     df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+   
+    grng, azi = en2rdr(df['rg_avg'],df['az_avg'], az_angle, inc_angle) 
+    grng_std, azi_std = en2rdr(df['rg_std'],df['az_std'], az_angle, inc_angle) 
+    df['grng_avg'] = grng 
+    df['azi_avg'] = azi
+    df['grng_std'] = np.abs(grng_std)
+    df['azi_std'] = np.abs(azi_std)
 
-    rg_bool_pass, rg_pass_rate, rg_pass_or_not = if_pass(df['rg_avg'],0.5)
-    az_bool_pass, az_pass_rate, az_pass_or_not = if_pass(df['az_avg'],0.75)
+    rg_bool_pass, rg_pass_rate, rg_pass_or_not = if_pass(df['grng_avg'],0.5)
+    az_bool_pass, az_pass_rate, az_pass_or_not = if_pass(df['azi_avg'],0.75)
 
     fig, ax = plt.subplots(2,1,figsize=(15,10),sharex=True)
     ax[0].set_title('RLE in Ground Range (m)')
     ax[0].axhspan(-0.5,0.5,color='red', alpha=0.05,label='requirements')    #OPERA requirements in ground range
-    ax[0].errorbar(df['date'][rg_bool_pass],df['rg_avg'][rg_bool_pass],df['rg_std'][rg_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
-    ax[0].errorbar(df['date'][~rg_bool_pass],df['rg_avg'][~rg_bool_pass],df['rg_std'][~rg_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
+    ax[0].errorbar(df['date'][rg_bool_pass],df['grng_avg'][rg_bool_pass],df['grng_std'][rg_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
+    ax[0].errorbar(df['date'][~rg_bool_pass],df['grng_avg'][~rg_bool_pass],df['grng_std'][~rg_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
     ax[0].set_ylim(-5,5)
     ax[0].grid(axis='x',linestyle='--')
     if rg_pass_or_not:
@@ -42,8 +56,8 @@ def run(inps):
     
     ax[1].set_title('RLE in Azimuth (m)')
     ax[1].axhspan(-0.75,0.75,color='red', alpha=0.05,label='requirements')    #OPERA requirements in azimuth
-    ax[1].errorbar(df['date'][az_bool_pass],df['az_avg'][az_bool_pass],df['az_std'][az_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
-    ax[1].errorbar(df['date'][~az_bool_pass],df['az_avg'][~az_bool_pass],df['az_std'][~az_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
+    ax[1].errorbar(df['date'][az_bool_pass],df['azi_avg'][az_bool_pass],df['azi_std'][az_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
+    ax[1].errorbar(df['date'][~az_bool_pass],df['azi_avg'][~az_bool_pass],df['azi_std'][~az_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
     ax[1].set_xlabel('dates')
     ax[1].set_ylim(-5,5)
     ax[1].grid(axis='x',linestyle='--')
