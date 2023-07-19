@@ -7,81 +7,100 @@ from mintpy.utils import readfile
 from mintpy.cli import ifgram_inversion, load_data
 import pandas as pd
 import fsspec
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 
-def hdf_read(input_hdf):
+def stream_cslc(s3f,pol):
+    try:
+        DATA_ROOT = 'science/SENTINEL1'
+        grid_path = f'{DATA_ROOT}/CSLC/grids'
+        metadata_path = f'metadata'
+        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+        id_path = f'{DATA_ROOT}/identification'
 
-    grid_path = f'data'
-    metadata_path = f'metadata'
-    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
-    id_path = f'identification'
-    pol = 'VV'
+        with h5py.File(s3f.open(),'r') as h5:
+            cslc = h5[f'{grid_path}/{pol}'][:]
+            xcoor = h5[f'{grid_path}/x_coordinates'][:]
+            ycoor = h5[f'{grid_path}/y_coordinates'][:]
+            dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+            dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+            epsg = h5[f'{grid_path}/projection'][()].astype(int)
+            sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+            sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+            dims = h5[f'{burstmetadata_path}/shape'][:]
+            bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+            orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+            center_lon, center_lat = h5[f'{burstmetadata_path}/center']
 
-    with h5py.File(input_hdf,'r') as h5:
-        xcoor = h5[f'{grid_path}/x_coordinates'][:]
-        ycoor = h5[f'{grid_path}/y_coordinates'][:]
-        dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-        dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-        epsg = h5[f'{grid_path}/projection'][()].astype(int)
-        slc = h5[f'{grid_path}/{pol}'][:]
-        sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-        dims = h5[f'{burstmetadata_path}/shape'][:]
-        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str) 
-        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-        center_lon, center_lat = h5[f'{burstmetadata_path}/center'] 
-        date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
+    except KeyError:
+        grid_path = f'data'
+        metadata_path = f'metadata'
+        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
+        id_path = f'identification'
 
-        #deramping and adding flattening phase back
-        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
-        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]        
-        ramp = np.exp(1j*azimuth_carrier_phase)
-        flat_phase = np.exp(1j*flatten_phase)
-        slc = slc*np.conj(ramp)*np.conj(flat_phase)
-        
-    return xcoor, ycoor, dx, dy, epsg, slc, date
-
-def hdf_stream(path_h5):
-
-    s3f = fsspec.open(path_h5, mode='rb', anon=True, default_fill_cache=False)
-    print(f'streaming: {path_h5}')
-
-    grid_path = f'data'
-    metadata_path = f'metadata'
-    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
-    id_path = f'identification'
-    pol = 'VV'
-
-    with h5py.File(s3f.open(),'r') as h5:
-        xcoor = h5[f'{grid_path}/x_coordinates'][:]
-        ycoor = h5[f'{grid_path}/y_coordinates'][:]
-        dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-        dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-        epsg = h5[f'{grid_path}/projection'][()].astype(int)
-        slc = h5[f'{grid_path}/{pol}'][:]
-        sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-        dims = h5[f'{burstmetadata_path}/shape'][:]
-        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str)
-        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-        center_lon, center_lat = h5[f'{burstmetadata_path}/center']
-        date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
-
-        #deramping and adding flattening phase back
-        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
-        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]
-        ramp = np.exp(1j*azimuth_carrier_phase)
-        flat_phase = np.exp(1j*flatten_phase)
-        slc = slc*np.conj(ramp)*np.conj(flat_phase)
-
-    return xcoor, ycoor, dx, dy, epsg, slc, date 
+        with h5py.File(s3f.open(),'r') as h5:
+            cslc = h5[f'{grid_path}/{pol}'][:]
+            xcoor = h5[f'{grid_path}/x_coordinates'][:]
+            ycoor = h5[f'{grid_path}/y_coordinates'][:]
+            dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+            dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+            epsg = h5[f'{grid_path}/projection'][()].astype(int)
+            sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+            sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+            dims = h5[f'{burstmetadata_path}/shape'][:]
+            bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+            orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+            center_lon, center_lat = h5[f'{burstmetadata_path}/center']
     
+    return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
+
+def get_s3path(cslc_static_url):
+    burst_id = cslc_static_url.split('/')[-1].split('_')[4]
+    print(f'The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
+    buckt = cslc_static_url.split('/')[2]
+    prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+    client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+    result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
+
+    path_h5 = []
+    for o in result.get('CommonPrefixes'):
+        path = o.get('Prefix')
+        if path.split('/')[-2].split("_")[-1] == 'layers':
+            path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
+
+    return path_h5
+   
+def stream_static_layers(cslc_static_url):
+    try:
+        s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    except FileNotFoundError:
+        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+        print(f'New static layer file: {new_cslc_static_url}')
+        s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    with h5py.File(s3f,'r') as h5:
+        try:
+            DATA_ROOT = 'science/SENTINEL1'
+            grid_path = f'{DATA_ROOT}/CSLC/grids'
+            static_grid_path = f'science/SENTINEL1/CSLC/grids/static_layers'
+            incidence_angle = h5[f'{static_grid_path}/incidence'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading'][:]
+        except KeyError:
+            static_grid_path = f'data'
+            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
+            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]
+
+    return incidence_angle, azimuth_angle
+ 
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
      os.makedirs(outdir,exist_ok=True)
 
      height, width = slc.shape
 
-     slc_file = outdir + '/' + date+'.slc'
+     slc_file = outdir + '/' + str(date)+'.slc'
      slc_vrt = slc_file+'.vrt'
 
      outtype = '<f'  #little endian (float)

@@ -109,7 +109,7 @@ def run(inps):
     objOffset.windowSizeHeight = windowSizeHeight
     objOffset.halfSearchRangeDown = halfSearchRangeDown # search range
     objOffset.halfSearchRangeAcross = halfSearchRangeAcross
-    objOffset.derampMethod = 0   #0=mag for TOPS, 1=deramping (default), else=skip deramping
+    objOffset.derampMethod = 0   #0=mag for TOPS, 1=deramping, else=skip deramping
 
     objOffset.skipSampleDown = skipSampleDown # strides between windows
     objOffset.skipSampleAcross = skipSampleAcross
