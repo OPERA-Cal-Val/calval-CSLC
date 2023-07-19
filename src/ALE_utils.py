@@ -56,11 +56,11 @@ def stream_cslc(s3f,pol):
     
     return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
 
-def get_s3path(cslc_static_url):
-    burst_id = cslc_static_url.split('/')[-1].split('_')[4]
+def get_s3path(s3url):
+    burst_id = s3url.split('/')[-1].split('_')[4]
     print(f'The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
-    buckt = cslc_static_url.split('/')[2]
-    prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+    buckt = s3url.split('/')[2]
+    prefx = f"{s3url.split('/')[3]}/{s3url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
     client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
     result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
 
