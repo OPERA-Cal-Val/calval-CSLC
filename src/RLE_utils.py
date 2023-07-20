@@ -20,6 +20,7 @@ def stream_cslc(s3f,pol):
         id_path = f'{DATA_ROOT}/identification'
 
         with h5py.File(s3f.open(),'r') as h5:
+            print(f'Streaming: {s3f}')  
             cslc = h5[f'{grid_path}/{pol}'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
@@ -40,6 +41,7 @@ def stream_cslc(s3f,pol):
         id_path = f'identification'
 
         with h5py.File(s3f.open(),'r') as h5:
+            # print(f'Streaming: {s3f}') 
             cslc = h5[f'{grid_path}/{pol}'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
@@ -225,13 +227,15 @@ def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
 
     return _avg, _std, days
 
-def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
+def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25,nprocs=2):
     #rgofflist: list of range offset files
     #azofflist: list of azimuth offset files
     #snrlist: list of snr files
     #out_dir: output directory
     #snr_thr: snr threshold
     #q: quantile threshold for excluding outliers
+
+    os.chdir(f'{out_dir}')
 
     refd = []
     secd = []
@@ -261,9 +265,9 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     script = f'''
     ##------------------------ smallbaselineApp.cfg ------------------------##
     ########## computing resource configuration
-    mintpy.compute.maxMemory = 10 #[float > 0.0], auto for 4, max memory to allocate in GB
-    mintpy.compute.cluster   = local #[local / slurm / pbs / lsf / none], auto for none, cluster type
-    mintpy.compute.numWorker = 10 #[int > 1 / all], auto for 4 (local) or 40 (non-local), num of workers
+    mintpy.compute.maxMemory = 16 #[float > 0.0], auto for 4, max memory to allocate in GB
+    mintpy.compute.cluster   = auto #[local / slurm / pbs / lsf / none], auto for none, cluster type
+    mintpy.compute.numWorker = {nprocs} #[int > 1 / all], auto for 4 (local) or 40 (non-local), num of workers
     mintpy.compute.config    = auto #[none / slurm / pbs / lsf ], auto for none (same as cluster), config name
     ########## 1. load_data
     mintpy.load.processor      = cosicorr  #[isce, aria, hyp3, gmtsar, snap, gamma, roipac], auto for isce
@@ -281,9 +285,9 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     mintpy.load.ionoFile       = auto  #[path pattern of ionospheric delay       files], optional
     mintpy.load.magFile        = auto  #[path pattern of interferogram magnitude files], optional
     ##---------offset datasets (optional):
-    mintpy.load.azOffFile      = ./{out_dir}/*az_off.tif  #[path pattern of azimuth offset file], optional
-    mintpy.load.rgOffFile      = ./{out_dir}/*rg_off.tif  #[path pattern of range   offset file], optional
-    mintpy.load.offSnrFile     = ./{out_dir}/*snr.tif  #[path pattern of offset signal-to-noise ratio file], optional
+    mintpy.load.azOffFile      = ../offsets/*az_off.tif  #[path pattern of azimuth offset file], optional
+    mintpy.load.rgOffFile      = ../offsets/*rg_off.tif  #[path pattern of range   offset file], optional
+    mintpy.load.offSnrFile     = ../offsets/*snr.tif'  #[path pattern of offset signal-to-noise ratio file], optional
 
     ##---------geometry datasets:
     mintpy.load.demFile        = auto  #[path of DEM file]

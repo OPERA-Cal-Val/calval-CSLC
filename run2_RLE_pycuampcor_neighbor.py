@@ -59,7 +59,7 @@ def createParser(iargs = None):
     parser = argparse.ArgumentParser(description='pycuampcor offset tracking with CSLC products')
     parser.add_argument("--inputDir", dest='inputDir',
                          required=True, type=str, help='input directory')
-    parser.add_argument("--burstID", dest='bid',
+    parser.add_argument("--burst_id", dest='bid',
                          required=True, type=str, help='burst ID to be processed')
     parser.add_argument("--out_dir", dest="out_dir",
             default='outputs', type=str, help='output directory for offset results (default: outputs)')
@@ -76,13 +76,13 @@ def createParser(iargs = None):
 
     return parser.parse_args(args=iargs)
 
-def run(inps):
+def main(inps):
 
     inputDir = inps.inputDir
     burst_id = inps.bid
     cslc_dir = f'{inputDir}/{burst_id.upper()}/cslc'   #location of cslc tif files 
     
-    out_dir = inps.out_dir
+    out_dir = f'{inputDir}/{burst_id.upper()}/{inps.out_dir}'
 
     filelist = sorted(glob.glob(f'{cslc_dir}/2*slc'))
     datels = []   #list of date
@@ -137,7 +137,7 @@ def run(inps):
 
     _ = {'ref': refDates, 'sec': secDates, 'deltaT':deltas, 'gpuID':gpuIDs}
     df = pd.DataFrame.from_dict(_)
-    print('slc pairs to be processed:')
+    print('CSLC pairs to be processed:')
     print(df)
 
     days = refDates + secDates
@@ -146,7 +146,7 @@ def run(inps):
     num_pairs = df.shape[0]   #number of pairs
     n_days = len(days)      #number of unique days
 
-    print(f'number of pairs for offset tracking {num_pairs}\n')
+    print(f'Number of pairs for offset tracking {num_pairs}\n')
 
     st_time = time.time()
     max_processes = num_gpu
@@ -162,7 +162,7 @@ def run(inps):
         if os.path.isfile(rgoff_file) and os.path.isfile(azoff_file) and os.path.isfile(snr_file):
             print(f'{rgoff_file}, {azoff_file}, {snr_file} already exist \n')    #when files exist, skipping offset tracking
         else:
-            cmd = f'python offset_pycuampcor.py --slc_dir {cslc_dir} --dateref {refd} --datesec {secd} --deviceID {deviceID} --out_dir {out_dir} --ww {windowSizeWidth} --wh {windowSizeHeight} --nwdc {numberWindowDownInChunk} --nwac {numberWindowAcrossInChunk}'
+            cmd = f'python src/offset_pycuampcor.py --slc_dir {cslc_dir} --dateref {refd} --datesec {secd} --deviceID {deviceID} --out_dir {out_dir} --ww {windowSizeWidth} --wh {windowSizeHeight} --nwdc {numberWindowDownInChunk} --nwac {numberWindowAcrossInChunk}'
             print(cmd)
             processes.add(subprocess.Popen(cmd.split(' ')))
             if len(processes) >= max_processes:
@@ -183,4 +183,4 @@ if __name__ == '__main__':
     inps = createParser()
     
     # Run workflow
-    run(inps)
+    main(inps)

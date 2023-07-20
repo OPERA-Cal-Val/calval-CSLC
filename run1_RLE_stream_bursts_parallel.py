@@ -28,12 +28,16 @@ def createParser(iargs = None):
                          default='20140101', type=str, help="Start date of RLE evaluation (default: 20140101)")
     parser.add_argument("--endDate", dest="endDate",
                          default=dt.datetime.today().strftime('%Y%m%d'), type=str, help="End date of RLE evaluation (default: today)")
-    parser.add_argument("--valBursts", dest="valBursts",
-                         default='validation_data/validation_bursts.csv', type=str, help="list of validation bursts (default: validation_data/validation_bursts.csv)")
-    parser.add_argument("--valTable", dest="valTable",
-                         default='validation_data/validation_table.csv', type=str, help="validation table (default: validation_data/validation_table.csv)")
+    # parser.add_argument("--valBursts", dest="valBursts",
+    #                      default='validation_data/validation_bursts.csv', type=str, help="list of validation bursts (default: validation_data/validation_bursts.csv)")
+    # parser.add_argument("--valTable", dest="valTable",
+    #                      default='validation_data/validation_table.csv', type=str, help="validation table (default: validation_data/validation_table.csv)")
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
+    parser.add_argument("--validation_bursts", dest="validation_bursts",
+                        default=Path('validation_data/validation_bursts.csv'), type=str, help='Validation burst table (default: validation_data/validation_bursts.csv)')
+    parser.add_argument("--validation_csv", dest="validation_csv",
+                        default=Path('validation_data/validation_table.csv'), type=str, help='Validation table (default: validation_data/validation_table.csv')
     return parser.parse_args(args=iargs)
 
 def cslc2tiff(p):
@@ -57,17 +61,18 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
-    valBursts = inps.valBursts
-    valTable = inps.valTable
+    # valBursts = inps.valBursts
+    # valTable = inps.valTable
 
     # read list of bursts used for validation
-    validation_bursts = Path(valBursts)
+    validation_bursts = Path(inps.validation_bursts) #Path(valBursts)
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:
         raise Exception(f'Expected burst record {validation_bursts.absolute()} '
                         'not found. Check working directory.')
 
+    # print(burstId_df)
     # only pass records matching specied AOI(s)
     if sample_bursts == []:
         sample_bursts =  burstId_df['burst_id'].unique().tolist()
@@ -75,7 +80,7 @@ def main(inps):
         burstId_df = burstId_df[burstId_df['burst_id'].isin(sample_bursts)]
 
     # access table of all S3 links
-    validation_csv = Path(valTable)
+    validation_csv = Path(inps.validation_csv) #Path(valTable)
     df_ = pd.read_csv(validation_csv)
     df = df_.drop_duplicates(subset=['burst_id', 'date'])
 
@@ -87,18 +92,19 @@ def main(inps):
     # Loop over all valid bursts for specified AOIs
     for burst_index, burst_row in burstId_df.iterrows():
         burstId = burst_row['burst_id']
+
         # Start runtime evaluation
         start = timeit.default_timer()
 
         # Create folders
         os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
-
+        
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
 
-                en2rdr = f'en2rdr_{burstId}.csv'  #en2rdr file (incidence angle azimuth angle) for converting EN to RDR
+                en2rdr = f'{savedir}/{burstId.upper()}/cslc/en2rdr_{burstId}.csv'  #en2rdr file (incidence angle azimuth angle) for converting EN to RDR
                 path_en2rdr = Path(en2rdr) 
                 if path_en2rdr.is_file():
                     pass
@@ -130,7 +136,9 @@ if __name__ == '__main__':
     # load arguments from command line
     inps = createParser()
 
-    print("Reading CSLC via streaming and saving tif files for pycuampcor")
+    print("=========================================================================")
+    print("Running Step 1 of the RLE: Streaming CSLC and saving to PyCuAmpcor format")
+    print("=========================================================================")
     
     # Run the main function
     main(inps)

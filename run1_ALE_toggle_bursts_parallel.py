@@ -32,6 +32,10 @@ def createParser(iargs = None):
                          default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
+    parser.add_argument("--validation_bursts", dest="validation_burst",
+                        default=Path('validation_data/validation_bursts.csv'), type=str, help='Validation burst table (default: validation_data/validation_bursts.csv)')
+    parser.add_argument("--validation_csv", dest="validation_csv",
+                        default=Path('validation_data/validation_table.csv'), type=str, help='Validation table (default: validation_data/validation_table.csv')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -107,7 +111,7 @@ def main(inps):
     endDate = inps.endDate
 
     # read list of bursts used for validation
-    validation_bursts = Path('validation_data/validation_bursts.csv')
+    validation_bursts = inps.validation_bursts #Path('validation_data/validation_bursts.csv')
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:
@@ -121,7 +125,7 @@ def main(inps):
         burstId_df = burstId_df[burstId_df['burst_id'].isin(sample_bursts)]
 
     # access table of all S3 links
-    validation_csv = Path('validation_data/validation_table.csv')
+    validation_csv = inps.validation_csv #Path('validation_data/validation_table.csv')
     df_ = pd.read_csv(validation_csv)
     df = df_.drop_duplicates(subset=['burst_id', 'date'])
 
@@ -181,7 +185,9 @@ if __name__ == '__main__':
     # load arguments from command line
     inps = createParser()
 
-    print("Running ALE now")
+    print("==================================================================")
+    print("Running the Absolute Location Estimation via Point-Target Analysis")
+    print("==================================================================")
     
     # Run the main function
     main(inps)

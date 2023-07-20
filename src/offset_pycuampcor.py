@@ -4,9 +4,13 @@ import numpy as np
 from osgeo import gdal,osr
 import os
 import time
-from PyCuAmpcor import PyCuAmpcor
 import h5py
-from src.RLE_utils import array2raster
+from RLE_utils import array2raster
+try:
+    from PyCuAmpcor import PyCuAmpcor
+except ModuleNotFoundError:
+    import isce
+    from contrib.PyCuAmpcor.PyCuAmpcor import PyCuAmpcor
 
 def createParser(iargs = None):
     '''Commandline input parser'''
