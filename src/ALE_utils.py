@@ -22,6 +22,8 @@ def stream_cslc(s3f,pol):
 
         with h5py.File(s3f.open(),'r') as h5:
             cslc = h5[f'{grid_path}/{pol}'][:]
+            azimuth_carrier_phase = []
+            flattening_phase = []
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
             dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
@@ -42,6 +44,8 @@ def stream_cslc(s3f,pol):
 
         with h5py.File(s3f.open(),'r') as h5:
             cslc = h5[f'{grid_path}/{pol}'][:]
+            azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
+            flattening_phase = h5[f'{grid_path}/flattening_phase'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
             dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
@@ -54,7 +58,7 @@ def stream_cslc(s3f,pol):
             orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
     
-    return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
+    return cslc, azimuth_carrier_phase, flattening_phase, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
 
 def get_s3path(s3url):
     burst_id = s3url.split('/')[-1].split('_')[4]

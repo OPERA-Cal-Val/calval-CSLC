@@ -32,7 +32,7 @@ def createParser(iargs = None):
                          default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
-    parser.add_argument("--validation_bursts", dest="validation_burst",
+    parser.add_argument("--validation_bursts", dest="validation_bursts",
                         default=Path('validation_data/validation_bursts.csv'), type=str, help='Validation burst table (default: validation_data/validation_bursts.csv)')
     parser.add_argument("--validation_csv", dest="validation_csv",
                         default=Path('validation_data/validation_table.csv'), type=str, help='Validation table (default: validation_data/validation_table.csv')
@@ -54,7 +54,7 @@ def run_papermill(p):
     save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
 
     # Run the ALE for each date via papermill
-    pm.execute_notebook('./util_notebooks/ALE_template_gamma.ipynb',
+    pm.execute_notebook('./util_notebooks/ALE_template.ipynb',
                 f'{save_dir}/ipynbs/ALE_{burst_id.upper()}_{cslc_date}.ipynb',
                 parameters={'cslc_url': cslc_url,
                             'cslc_static_url': cslc_static_url,
@@ -111,7 +111,7 @@ def main(inps):
     endDate = inps.endDate
 
     # read list of bursts used for validation
-    validation_bursts = inps.validation_bursts #Path('validation_data/validation_bursts.csv')
+    validation_bursts = Path(inps.validation_bursts) #Path('validation_data/validation_bursts.csv')
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:
@@ -125,7 +125,7 @@ def main(inps):
         burstId_df = burstId_df[burstId_df['burst_id'].isin(sample_bursts)]
 
     # access table of all S3 links
-    validation_csv = inps.validation_csv #Path('validation_data/validation_table.csv')
+    validation_csv = Path(inps.validation_csv) #Path('validation_data/validation_table.csv')
     df_ = pd.read_csv(validation_csv)
     df = df_.drop_duplicates(subset=['burst_id', 'date'])
 
