@@ -4,13 +4,9 @@ import numpy as np
 from osgeo import gdal,osr
 import os
 import time
+from PyCuAmpcor import PyCuAmpcor
 import h5py
-from RLE_utils import array2raster
-try:
-    from PyCuAmpcor import PyCuAmpcor
-except ModuleNotFoundError:
-    import isce
-    from contrib.PyCuAmpcor.PyCuAmpcor import PyCuAmpcor
+from src.RLE_utils import array2raster
 
 def createParser(iargs = None):
     '''Commandline input parser'''
@@ -81,6 +77,16 @@ def run(inps):
     numberWindowDown = int(np.floor((height
                                      - referenceStartPixelDownStatic - windowSizeHeight 
                                      - halfSearchRangeDown)/skipSampleDown/10))*10
+    
+    if (referenceStartPixelAcrossStatic+windowSizeWidth+halfSearchRangeAcross+numberWindowAcross*skipSampleAcross >= width):
+        numberWindowAcross = int(np.floor((width 
+                                           - referenceStartPixelAcrossStatic - windowSizeWidth 
+                                           - halfSearchRangeAcross)/ skipSampleAcross/10)-1)*10
+    
+    if (referenceStartPixelDownStatic+windowSizeHeight+halfSearchRangeDown+numberWindowDown*skipSampleDown >= height):
+        numberWindowDown = int(np.floor((height
+                                         - referenceStartPixelDownStatic - windowSizeHeight 
+                                         - halfSearchRangeDown)/skipSampleDown/10)-1)*10
 
     assert referenceStartPixelAcrossStatic+windowSizeWidth+halfSearchRangeAcross+numberWindowAcross*skipSampleAcross < width
     assert referenceStartPixelDownStatic+windowSizeHeight+halfSearchRangeDown+numberWindowDown*skipSampleDown < height
