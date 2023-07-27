@@ -35,6 +35,7 @@ def stream_cslc(s3f,pol):
             bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
             orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+            wavelength = h5[f'{burstmetadata_path}/wavelength'][()].astype(str)
 
     except KeyError:
         grid_path = f'data'
@@ -57,8 +58,9 @@ def stream_cslc(s3f,pol):
             bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
             orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+            wavelength = h5[f'{burstmetadata_path}/wavelength'][()].astype(str)
     
-    return cslc, azimuth_carrier_phase, flattening_phase, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
+    return cslc, azimuth_carrier_phase, flattening_phase, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat, wavelength
 
 def get_s3path(s3url):
     burst_id = s3url.split('/')[-1].split('_')[4]
@@ -106,7 +108,7 @@ def oversample_slc(slc,sampling=1,y=None,x=None):
     if x is None:
         x = np.arange(slc.shape[1])
 
-    [rows, cols] = np.shape(slc)
+    [rows, cols] = np.shape(slc)    
     
     try:
         slcovs = isce3.cal.point_target_info.oversample(slc,sampling)
@@ -217,3 +219,6 @@ def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     snr_peak_db = np.log10(peak_power / mean_background_power) * 10.0
 
     return snr_peak_db
+
+def predicted_rcs(wavelength, slen):
+    return 10*np.log10((4*np.pi*slen**4)/(3*wavelength**2))
