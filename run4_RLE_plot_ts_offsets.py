@@ -5,6 +5,7 @@ import numpy as np
 import datetime as dt
 import matplotlib.pyplot as plt
 from src.ALE_utils import en2rdr
+from scipy.signal import detrend
 
 def createParser(iargs = None):
     '''Commandline input parser'''
@@ -16,7 +17,9 @@ def createParser(iargs = None):
     parser.add_argument("--en2rdr", dest='en2rdr',
              required=True,type=str, help='csv file of incidence and azimuth angle (unit: deg)') 
     parser.add_argument("--refDate", dest='refDate',
-             default='20150601', type=str, help='Reference date of the stack') 
+             default='20150601', type=str, help='Reference date of the stack')
+    parser.add_argument("--detrend", dest='detrend',
+             default=False, action="store_true",help='detrending from time-series offset (default: False)')
     return parser.parse_args(args=iargs)
 
 def if_pass(ts,requirement):
@@ -35,6 +38,11 @@ def main(inps):
 
     grng, azi = en2rdr(df['rg_avg'],df['az_avg'], az_angle, inc_angle) 
     grng_std, azi_std = en2rdr(df['rg_std'],df['az_std'], az_angle, inc_angle) 
+
+    if detrend_flag:
+        grng = detrend(grng, type='linear')
+        azi  = detrend(azi, type='linear')  
+    
     df['grng_avg'] = grng
     df['azi_avg'] = azi
     df['grng_std'] = np.abs(grng_std)

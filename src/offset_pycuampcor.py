@@ -81,6 +81,16 @@ def run(inps):
     numberWindowDown = int(np.floor((height
                                      - referenceStartPixelDownStatic - windowSizeHeight 
                                      - halfSearchRangeDown)/skipSampleDown/10))*10
+    
+    if (referenceStartPixelAcrossStatic+windowSizeWidth+halfSearchRangeAcross+numberWindowAcross*skipSampleAcross >= width):
+        numberWindowAcross = int(np.floor((width 
+                                           - referenceStartPixelAcrossStatic - windowSizeWidth 
+                                           - halfSearchRangeAcross)/ skipSampleAcross/10)-1)*10
+    
+    if (referenceStartPixelDownStatic+windowSizeHeight+halfSearchRangeDown+numberWindowDown*skipSampleDown >= height):
+        numberWindowDown = int(np.floor((height
+                                         - referenceStartPixelDownStatic - windowSizeHeight 
+                                         - halfSearchRangeDown)/skipSampleDown/10)-1)*10
 
     assert referenceStartPixelAcrossStatic+windowSizeWidth+halfSearchRangeAcross+numberWindowAcross*skipSampleAcross < width
     assert referenceStartPixelDownStatic+windowSizeHeight+halfSearchRangeDown+numberWindowDown*skipSampleDown < height
