@@ -1,34 +1,21 @@
 import numpy as np
 import math
 import scipy
-
+import isce3
 
 '''
 Collection utility functions to find the corner reflectors based on intensity peak
 '''
 
 def oversample_slc(slc,sampling=1,y=None,x=None):
-    '''
-    oversample the SLC data
-        sampling: oversampling factor
-    '''
-    
     if y is None:
         y = np.arange(slc.shape[0])
     if x is None:
         x = np.arange(slc.shape[1])
 
-    rows, cols = np.shape(slc)
-    _slc = np.fft.fftshift(np.fft.fft2(slc))
-    min_row = math.ceil(rows * sampling / 2 - rows / 2)
-    max_row = min_row + rows
-    min_col = math.ceil(cols * sampling / 2 - cols / 2)
-    max_col = min_col + cols
+    [rows, cols] = np.shape(slc)
     
-    slc_padding = np.zeros((rows * sampling, cols * sampling), dtype=_slc.dtype)    #zero padding
-    slc_padding[min_row:max_row,min_col:max_col] = _slc
-    slc_ = np.fft.fftshift(slc_padding)
-    slcovs = np.fft.ifft2(slc_) * sampling * sampling
+    slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
 
     y_orign_step = y[1]-y[0]
     y_ovs_step = y_orign_step/sampling
@@ -92,3 +79,45 @@ def interpolate_correction_layers(xcoor, ycoor, data, method):
 
     return np.flipud(data_resampl)
 
+def en2rdr(E, N, az_angle, inc_angle):
+    rng = E * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle - 90)) * -1 + N * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle - 90)) 
+    grng = rng / np.sin((np.deg2rad(inc_angle)))
+    azi = E * np.sin(np.deg2rad(az_angle - 90)) * -1 + N * np.cos(np.deg2rad(az_angle - 90))
+
+    return grng, azi
+
+def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
+    '''
+    Estimate the signal-to-noise ration (SNR) of the peak
+    in the input image patch
+    Parameter
+    ---------
+    img: numpy.ndarray
+        SLC image patch to calculate the SNR
+    cutout: float
+        Cutout ratio of high and low part of the signal to cutoff
+    Returns
+    -------
+    snr_peak_db: float
+        SNR of the peak in decibel (db)
+    '''
+
+    power_arr = img.real ** 2 + img.imag ** 2
+
+    # build up the mask array
+    thres_low = np.nanpercentile(power_arr, cutoff_percentile)
+    thres_high = np.nanpercentile(power_arr, 100 - cutoff_percentile)
+    mask_threshold = np.logical_and(power_arr < thres_low,
+                                    power_arr > thres_high)
+    mask_invalid_pixel = np.logical_and(power_arr <= 0.0,
+                                        np.isnan(power_arr))
+    ma_power_arr = np.ma.masked_array(power_arr,
+                                      mask=np.logical_and(mask_threshold,
+                                                          mask_invalid_pixel))
+
+    peak_power = np.nanmax(power_arr)
+    mean_background_power = np.mean(ma_power_arr)
+
+    snr_peak_db = np.log10(peak_power / mean_background_power) * 10.0
+
+    return snr_peak_db
