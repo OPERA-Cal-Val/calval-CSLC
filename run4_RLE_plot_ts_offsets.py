@@ -62,7 +62,7 @@ def main(inps):
 
     # Plot figure
     fig, ax = plt.subplots(2,1,figsize=(15,10))
-    ax[0].set_title(f'RLE in Ground Range (m) \n Reference Date: {refDate.date()}')
+    ax[0].set_ylabel(f'RLE in Ground Range (m) \n Reference Date: {refDate.date()}')
     ax[0].axhspan(-0.5,0.5,color='red', alpha=0.05,label='requirements')    #OPERA requirements in ground range
     ax[0].errorbar(df['date'][rg_bool_pass],df['grng_avg'][rg_bool_pass],df['grng_std'][rg_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
     ax[0].errorbar(df['date'][~rg_bool_pass],df['grng_avg'][~rg_bool_pass],df['grng_std'][~rg_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
@@ -75,7 +75,7 @@ def main(inps):
         ax[0].text(0.94,0.90,'Fail',color='w',size=15,weight='bold',transform = ax[0].transAxes,bbox=dict(facecolor='red',boxstyle='round',edgecolor='none'))
     ax[0].legend(loc = 'lower right',frameon=True)
     
-    ax[1].set_title(f'RLE in Azimuth (m) \n Reference Date: {refDate.date()}')
+    ax[1].set_ylabel(f'RLE in Azimuth (m) \n Reference Date: {refDate.date()}')
     ax[1].axhspan(-0.75,0.75,color='red', alpha=0.05,label='requirements')    #OPERA requirements in azimuth
     ax[1].errorbar(df['date'][az_bool_pass],df['azi_avg'][az_bool_pass],df['azi_std'][az_bool_pass],marker='o',color='b',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='passed offset')
     ax[1].errorbar(df['date'][~az_bool_pass],df['azi_avg'][~az_bool_pass],df['azi_std'][~az_bool_pass],marker='o',color='r',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0,label='failed offset')
@@ -87,6 +87,7 @@ def main(inps):
     else:
         ax[1].text(0.94,0.90,'Fail',color='w',size=15,weight='bold',transform = ax[1].transAxes,bbox=dict(facecolor='red',boxstyle='round',edgecolor='none'))
     ax[1].legend(loc = 'lower right',frameon=True)
+    plt.tight_layout()
     fig.savefig(inps.png,dpi=300,bbox_inches='tight')
 
 if __name__ == '__main__':
