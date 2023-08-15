@@ -184,6 +184,19 @@ def en2rdr(E, N, az_angle, inc_angle):
 
     return grng, azi
 
+def enlos2rdr(E, N, los_e, los_n):
+    '''
+    E, N: east and north components
+    los_e, los_n: unit los vector in east and north
+    '''
+    
+    rng = E*los_e + N*los_n
+    grng = rng / np.sqrt(los_e**2 + los_n**2)
+    azi = (E*los_n - N*los_e) / np.sqrt(los_e**2+los_n**2)  #for right looking 
+    #azi = (-E*los_n + N*los_e) / np.sqrt(los_e**2+los_n**2)  #for left looking
+ 
+    return grng, azi
+
 def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     '''
     Estimate the signal-to-noise ration (SNR) of the peak
