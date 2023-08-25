@@ -4,7 +4,6 @@ import numpy as np
 from osgeo import gdal,osr
 import os
 import time
-import h5py
 from RLE_utils import array2raster
 try:
     from PyCuAmpcor import PyCuAmpcor
