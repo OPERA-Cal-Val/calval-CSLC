@@ -7,11 +7,62 @@ import numpy as np
 import os, time
 import subprocess
 import matplotlib.pyplot as plt
-from src.RLE_utils import hdf_read, convert_to_slcvrt, array2raster, simple_SBAS_stats, mintpy_SBAS_stats
+
+import sys
+sys.path.append('../')
+from src.RLE_utils import hdf_stream, convert_to_slcvrt, array2raster, simple_SBAS_stats, mintpy_SBAS_stats
+
+def sort_pair(days,minDelta=5,maxDelta=90):
+    '''
+    days: list of days
+    minDelta: minimum temporal baseline (days), maxDelta: maximum temporal baseline (days)
+    
+    determining pairs of reference and secondary dates
+    given minimum and maximum temporal baseline
+    '''
+    date_pair = list(itertools.combinations(days,2))   #possible pair of InSAR dates
+
+    refDates = []
+    secDates = []
+    deltas = []
+
+    for refDate, secDate in date_pair:
+        delta = dt.datetime.strptime(secDate, "%Y%m%d") - dt.datetime.strptime(refDate, "%Y%m%d")
+        delta = int(delta.days)
+        
+        if (delta > minDelta) & (delta < maxDelta):
+            refDates.append(refDate)
+            secDates.append(secDate)
+            deltas.append(delta)
+    
+    return refDates, secDates
+
+def neighbor_pair(days,n_neighbor=2):
+    '''
+    days: list of days
+    n_neighbor: number of neighboring pair
+    
+    determining pairs of reference and secondary dates
+    given number of neighbor pairs
+    '''
+    refDates = []
+    secDates = []
+    ndays = len(days)
+
+    for i,_ref in enumerate(days):
+        _ = days[i+1:min(ndays,i+1+n_neighbor)]
+    
+        for _sec in _:
+            refDates.append(_ref)
+            secDates.append(_sec)
+    
+    return refDates, secDates
 
 def createParser(iargs = None):
     '''Commandline input parser'''
     parser = argparse.ArgumentParser(description='Batch processing of offset tracking and Generating a final output')
+    parser.add_argument("--s3path", dest='s3path',
+                         required=True, type=str, help='aws S3 bucket location (e.g., s3://opera-provisional/...)')
     parser.add_argument("--burstID", dest='bid',
                          required=True, type=str, help='burst ID to be processed')
     parser.add_argument("--datefile", dest='dfile',
@@ -20,10 +71,8 @@ def createParser(iargs = None):
             default='SLCDIR', type=str, help='slc directory (default: SLCDIR)')
     parser.add_argument("--out_dir", dest="out_dir",
             default='outputs', type=str, help='output directory for offset results (default: outputs)')
-    parser.add_argument("--minTemp", dest="minTemp",
-            default=5, type=int, help='minimum temporal baseline (days) (default: 5)')
-    parser.add_argument("--maxTemp", dest="maxTemp",
-            default=370, type=int, help='maximum temporal baseline (days) (default: 370)')
+    parser.add_argument("--neighbor", dest="neighbor",
+            default=3, type=int, help='number of neighboring pairs (default: 3)')
     parser.add_argument("--ww", dest="ww",
             default=64, type=int, help='window width for offset tracking of pycuampcor (default: 64)')
     parser.add_argument("--wh", dest="wh",
@@ -37,22 +86,22 @@ def createParser(iargs = None):
     parser.add_argument("--tsmethod", dest="tsmethod",
             default='mintpy', type=str, help='method for time-series inversion: mintpy (default), sbas (simple SBAS method)')
     parser.add_argument("--pngfile", dest='png',
-            default='RLE_ts.png',type=str, help='burst ID to be processed (default: RLE_ts.png)')
+            default='RLE_ts.png',type=str, help='PNG file name for time-series RLE (default: RLE_ts.png)')
     parser.add_argument("--csvfile", dest='csv',             
-            default='RLE_ts.csv',type=str, help='burst ID to be processed (default: RLE_ts.csv)')
+            default='RLE_ts.csv',type=str, help='CSV file name for time-series RLE (default: RLE_ts.csv)')
     return parser.parse_args(args=iargs)
 
 def run(inps):
 
+    data_dir = inps.s3path
     burst_id = inps.bid
 
     slc_dir = inps.slc_dir
     out_dir = inps.out_dir
     f = open(inps.dfile)
     datels = f.read().splitlines()
-    
-    minDelta = inps.minTemp    #min time interval
-    maxDelta = inps.maxTemp    #max time interval
+
+    n_neighbor = inps.neighbor
 
     ##parameters for pycuampcor
     windowSizeWidth = inps.ww     #window size (width) for pycuampcor
@@ -71,26 +120,36 @@ def run(inps):
     num_gpu = int(num_gpu)
     print(f'number of GPU: {num_gpu} \n')
 
-    #RLE with multi-reference pairs
-    date_pair = list(itertools.combinations(datels,2))
+    #generating neighboring pairs
+    refDates, secDates = neighbor_pair(datels,n_neighbor=n_neighbor)
 
-    refDates = []
-    secDates = []
+    summer_dates = []
+
+    for _ in datels:
+        _mon = int(_[4:6])
+
+        #only including summer monthos between May and Oct
+        if (_mon>=5) and (_mon<=10):
+            summer_dates.append(_)
+
+    #adding pairs with ~1 year temporal baseline
+    _ref, _sec = sort_pair(summer_dates,minDelta=345,maxDelta=375)
+
+    refDates = refDates + _ref
+    secDates = secDates + _sec
+
     deltas = []
     gpuIDs = []
     _gpuID = 0
 
-    for refDate, secDate in date_pair:
+    for refDate, secDate in zip(refDates,secDates):
+
         delta = dt.datetime.strptime(secDate, "%Y%m%d") - dt.datetime.strptime(refDate, "%Y%m%d")
         delta = int(delta.days)
-    
-        if (delta > minDelta) & (delta < maxDelta):
-            refDates.append(refDate)
-            secDates.append(secDate)
-            deltas.append(delta)
-            gpuIDs.append(_gpuID)
-            _gpuID = _gpuID + 1
-            _gpuID = _gpuID % num_gpu
+        deltas.append(delta)
+        gpuIDs.append(_gpuID)
+        _gpuID = _gpuID + 1
+        _gpuID = _gpuID % num_gpu
 
     _ = {'ref': refDates, 'sec': secDates, 'deltaT':deltas, 'gpuID':gpuIDs}
     df = pd.DataFrame.from_dict(_)
@@ -103,9 +162,9 @@ def run(inps):
     num_pairs = df.shape[0]   #number of pairs
     n_days = len(days)      #number of unique days
 
-    print(f'\nminimum temporal baseline: {minDelta} days')
-    print(f'maximum temporal baseline: {maxDelta} days')
     print(f'number of pairs for offset tracking {num_pairs}\n')
+
+    st_time = time.time()
 
     #creating slc inputs from COMPASS hdf file
     for day in days:
@@ -115,16 +174,14 @@ def run(inps):
         if os.path.isfile(outSLC) and (os.path.isfile(outSLCvrt)):
             print(f'{day}.slc exist. \n')
         else:
-            path_h5 = f'stack/{burst_id}/{day}/{burst_id}_{day}.h5'   #path to COMPASS CSLC h5 file
+            path_h5 = f'{data_dir}/{burst_id}/{day}/{burst_id}_{day}.h5'   #path to COMPASS CSLC h5 file in aws s3 bucket
 
-            xcoor, ycoor, dx, dy, epsg, slc, date = hdf_read(path_h5)   
+            xcoor, ycoor, dx, dy, epsg, slc, date = hdf_stream(path_h5)   
             convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, slc_dir)   #generating slc with vrt 
 
     max_processes = num_gpu
     processes = set()
 
-    st_time = time.time()
- 
     #main offset tracking with pycuampcor
     for refd, secd, deviceID in zip(df['ref'],df['sec'],df['gpuID']):
 
@@ -148,8 +205,10 @@ def run(inps):
             p.wait()
 
     end_time = time.time()
-    time_taken = end_time - st_time
-    print(f'{time_taken}s taken for all pycuampcor processing')
+    time_taken = (end_time - st_time)/60.
+    print(f'{time_taken} min taken for all pycuampcor processing')
+
+    st_time = time.time()
 
     #applying SBAS approach
     list_rgoff = df['ref'] + '_' + df['sec'] + '.rg_off.tif'
@@ -162,23 +221,28 @@ def run(inps):
     else:
         rg_avg, rg_std, az_avg, az_std = mintpy_SBAS_stats(list_rgoff,list_azoff,list_snr,out_dir,snr_th) 
 
+    end_time = time.time()
+    time_taken = (end_time - st_time)/60.
+    print(f'{time_taken} min taken for SBAS processing')
+
     df = None
     _ = {'date':days, 'rg_avg':rg_avg, 'rg_std':rg_std, 'az_avg':az_avg, 'az_std':az_std}
     df = pd.DataFrame.from_dict(_)
-    df['date'] = pd.to_datetime(df['date'],format='%Y%m%d')
     df.to_csv(inps.csv, index=False)
+    df['date'] =  pd.to_datetime(df['date'])
+    df['date'].dt.strftime('%Y%m%d')
 
     fig, ax = plt.subplots(2,1,figsize=(15,10),sharex=True)
 
-    ax[0].set_title('RLE in dx (m)')
-    ax[0].axhspan(-0.5,0.5,color='gray', alpha=0.2)    #OPERA requirements in dx
-    ax[0].errorbar(df['date'],df['rg_avg'],df['rg_std'],marker='s',linestyle=' ',ecolor='k')
+    ax[0].set_title('RLE in Ground Range (m)')
+    ax[0].axhspan(-0.5,0.5,color='red', alpha=0.05)    #OPERA requirements in ground range
+    ax[0].errorbar(df['date'],df['rg_avg'],df['rg_std'],marker='o',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0)
     ax[0].set_ylim(-5,5)
     ax[0].grid(axis='x',linestyle='--')
 
-    ax[1].set_title('RLE in dy (m)')
-    ax[1].axhspan(-0.75,0.75,color='gray', alpha=0.2)    #OPERA requirements in dy
-    ax[1].errorbar(df['date'],df['az_avg'],df['az_std'],marker='s',linestyle=' ',ecolor='k')
+    ax[1].set_title('RLE in Azimuth (m)')
+    ax[1].axhspan(-0.75,0.75,color='red', alpha=0.05)    #OPERA requirements in azimuth
+    ax[1].errorbar(df['date'],df['az_avg'],df['az_std'],marker='o',linestyle=' ',ecolor='lightgray', elinewidth=3, capsize=0, zorder=0)
     ax[1].set_xlabel('dates')
     ax[1].set_ylim(-5,5)
     ax[1].grid(axis='x',linestyle='--')

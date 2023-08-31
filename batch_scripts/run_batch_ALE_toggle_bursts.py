@@ -71,7 +71,7 @@ for burst_index, burst_row in burstId_df.iterrows():
 
             # Run the ALE for each date
             print(f'Processing AO ({cr_network}) burst ({burst_id}), for date ({cslc_date})')
-            pm.execute_notebook('ALE_COMPASS_Stream.ipynb',
+            pm.execute_notebook('../ALE_COMPASS_Stream.ipynb',
                         f'{save_dir}/ipynbs/ALE_COMPASS_{burst_id}_{cslc_date}.ipynb',
                         parameters={'cslc_url': cslc_url,
                                     'cslc_static_url': cslc_static_url,

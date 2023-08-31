@@ -6,6 +6,9 @@ import os
 import time
 from PyCuAmpcor import PyCuAmpcor
 import h5py
+
+import sys
+sys.path.append('../')
 from src.RLE_utils import array2raster
 
 def createParser(iargs = None):

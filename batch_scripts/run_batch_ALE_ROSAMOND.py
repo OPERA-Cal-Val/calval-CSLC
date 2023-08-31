@@ -12,11 +12,12 @@ datels = f.read().splitlines()
 
 #Parameters
 data_dir = 's3://opera-provisional-products/CSLC/pst_adt_common/gamma_v.0.3/Rosamond/Ascending'
-save_dir = './Rosamond/A064_run4'
+save_dir = './Rosamond/A064_run6_128x_converted'
 burst_id = 't064_135523_iw2'
 snr_threshold = 15
 solidtide = 'True'
 cr_network = 'Rosamond'
+ovsFactor = 128
 
 # Create folders
 os.makedirs(f'{save_dir}/pngs', exist_ok=True)
@@ -37,7 +38,7 @@ if os.path.isfile(outcsv2):
 # Run the ALE for each date
 for d in datels:
     print(f'Processing date: {d}')
-    pm.execute_notebook('ALE_COMPASS_Stream.ipynb',
+    pm.execute_notebook('../ALE_COMPASS_Stream.ipynb',
                         f'{save_dir}/ipynbs/ALE_COMPASS_{burst_id}_{d}.ipynb',
                         parameters={'data_dir':data_dir,
                                     'save_dir':save_dir,
@@ -45,7 +46,8 @@ for d in datels:
                                     'date':d, 
                                     'snr_threshold':snr_threshold, 
                                     'solidtide':solidtide,
-                                    'cr_network':cr_network},
+                                    'cr_network':cr_network,
+                                    'ovsFactor':ovsFactor},
                         kernel_name='calval-CSLC')
     
 # End runtime evaluation
