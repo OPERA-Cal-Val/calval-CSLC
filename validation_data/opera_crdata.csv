@@ -1,0 +1,5 @@
+"Corner reflector ID","Latitude (deg)","Longitude (deg)","Height above ellipsoid (m)","Azimuth (deg)","Tilt / Elevation angle (deg)","Side length (m)"
+OPERA_CR1,36.140443,-120.879208,779.755,0,15.5,2.4
+OPERA_CR2,36.140424,-120.879167,779.755,180,14.8,2.4
+OPERA_CR3,36.18750864,-120.758987,779.755,1,13.5,2.4
+OPERA_CR4,36.18709022,-120.7583466,788.546,181,15.8,2.4

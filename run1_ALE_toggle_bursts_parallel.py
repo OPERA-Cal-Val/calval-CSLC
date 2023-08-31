@@ -51,6 +51,7 @@ def run_papermill(p):
     else:
         solidtide='False'
     ovsFactor = p[6]
+    
     save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
 
     # Run the ALE for each date via papermill

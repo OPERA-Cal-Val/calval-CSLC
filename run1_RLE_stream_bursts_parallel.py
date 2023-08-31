@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+###!/usr/bin/env python3
 
 import argparse
 import os
@@ -51,7 +51,7 @@ def cslc2tiff(p):
     cslc,xcoor,ycoor,dx,dy,epsg,sensing_start,sensing_stop,dims,bounding_polygon,orbit_direction,center_lon,center_lat = stream_cslc(s3f,pol)
     
     convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, cslc, date, save_dir)   #generating slc with vrt
-    return f'cslc data burst ({burst_id}) for date ({date}) successfully stored in ({save_dir})'
+    return f'OPERA CSLC with burst_id ({burst_id}) for date ({date}) successfully stored in ({save_dir})'
 
 def main(inps):
     # Specify valid burst(s)
@@ -72,7 +72,6 @@ def main(inps):
         raise Exception(f'Expected burst record {validation_bursts.absolute()} '
                         'not found. Check working directory.')
 
-    # print(burstId_df)
     # only pass records matching specied AOI(s)
     if sample_bursts == []:
         sample_bursts =  burstId_df['burst_id'].unique().tolist()
