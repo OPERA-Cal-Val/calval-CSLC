@@ -28,10 +28,6 @@ def createParser(iargs = None):
                          default='20140101', type=str, help="Start date of RLE evaluation (default: 20140101)")
     parser.add_argument("--endDate", dest="endDate",
                          default=dt.datetime.today().strftime('%Y%m%d'), type=str, help="End date of RLE evaluation (default: today)")
-    # parser.add_argument("--valBursts", dest="valBursts",
-    #                      default='validation_data/validation_bursts.csv', type=str, help="list of validation bursts (default: validation_data/validation_bursts.csv)")
-    # parser.add_argument("--valTable", dest="valTable",
-    #                      default='validation_data/validation_table.csv', type=str, help="validation table (default: validation_data/validation_table.csv)")
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
     parser.add_argument("--validation_bursts", dest="validation_bursts",
@@ -103,17 +99,18 @@ def main(inps):
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
 
-                en2rdr = f'{savedir}/{burstId.upper()}/cslc/en2rdr_{burstId}.csv'  #en2rdr file (incidence angle azimuth angle) for converting EN to RDR
-                path_en2rdr = Path(en2rdr) 
-                if path_en2rdr.is_file():
+                enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
+
+                path_enlos2rdr = Path(enlos2rdr) 
+                if path_enlos2rdr.is_file():
                     pass
                 else:
                     #reading static layer
-                    incidence_angle, azimuth_angle = stream_static_layers(val_row['cslc_static_url'])
-                    incidence_angle = np.nanmean(incidence_angle)
-                    azimuth_angle = np.nanmean(azimuth_angle)
-                    with open(en2rdr,'w') as f:
-                        f.write(f'{incidence_angle} {azimuth_angle}')
+                    los_east, los_north = stream_static_layers(val_row['cslc_static_url'])
+                    los_east = np.nanmean(los_east)
+                    los_north = np.nanmean(los_north)
+                    with open(enlos2rdr,'w') as f:
+                        f.write(f'{los_east} {los_north}')
 
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],savedir])
