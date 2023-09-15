@@ -36,6 +36,8 @@ def createParser(iargs = None):
                         default=Path('validation_data/validation_bursts.csv'), type=str, help='Validation burst table (default: validation_data/validation_bursts.csv)')
     parser.add_argument("--validation_csv", dest="validation_csv",
                         default=Path('validation_data/validation_table.csv'), type=str, help='Validation table (default: validation_data/validation_table.csv')
+    parser.add_argument("--ver", dest="prod_version",
+                    default='v.0.2', type=str, help='Product version to validate (default: v.0.2)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -46,16 +48,17 @@ def run_papermill(p):
     cslc_static_url = p[3]
     cr_network = p[4]
     snr_threshold = p[5]
+    prod_version = p[-1]
     if cr_network == 'Rosamond':
         solidtide='True'
     else:
         solidtide='False'
     ovsFactor = p[6]
     
-    save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
+    save_dir = f'{p[-2]}/{cr_network}/{burst_id.upper()}'
 
     # Run the ALE for each date via papermill
-    pm.execute_notebook('./util_notebooks/ALE_template.ipynb',
+    pm.execute_notebook(f'./util_notebooks/ALE_template_{prod_version}.ipynb',
                 f'{save_dir}/ipynbs/ALE_{burst_id.upper()}_{cslc_date}.ipynb',
                 parameters={'cslc_url': cslc_url,
                             'cslc_static_url': cslc_static_url,
@@ -71,30 +74,34 @@ def run_papermill(p):
     return (f'Finished processing AO ({cr_network}) burst ({burst_id}), for date ({cslc_date})')
 
 def download_crdata(p):
+    
     # Set Parameters
     date = p[0]
     burst_id = p[1]
     cslc_url = p[2]
     cr_network = p[4]
-    save_dir = f'{p[-1]}/{cr_network}/{burst_id.upper()}'
-    sensing_time = dt.datetime.strptime(cslc_url.split('/')[-1].split('_')[-3], '%Y%m%dT%H%M%SZ').strftime('%Y-%m-%d+%H\u0021%M')
+    save_dir = f'{p[7]}/{cr_network}/{burst_id.upper()}'
+    sensing_time = dt.datetime.strptime(cslc_url.split('/')[-1].split('_')[4], '%Y%m%dT%H%M%SZ').strftime('%Y-%m-%d+%H\u0021%M')
 
-    print(f'Downloading crdata_{burst_id.upper()}_{date}.csv')
+    print(f"Downloading crdata_{cslc_url.split('/')[-1][:-3]}.csv")
+    #print(f'Saving to: {save_dir}')
+    
     # Get date and download
     if cr_network=='Rosamond':
         # Download corner reflector data from UAVSAR/NISAR based on the date of the CSLC product
-        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=uavsar')
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=rosamond_plate_location')
     elif cr_network=='Oklahoma':
         # Download corner reflector data from UAVSAR/NISAR based on the date of the CSLC product
-        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=nisar')
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=nisar_plate_location')
     elif cr_network=='Alaska':
         # Download corner reflector data from NISAR based on the date of the CSLC product
-        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=alaska')
+        res = requests.get(f'https://uavsar.jpl.nasa.gov/cgi-bin/corner-reflectors.pl?date={sensing_time}&project=alaska_plate_location')
     else:
         raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
     
     # Write the crdata to file
     with open(f'{save_dir}/crdata/crdata_{burst_id.upper()}_{date}.csv', 'wb') as crfile:
+    #with open(f"{save_dir}/crdata/crdata_{cslc_url.split('/')[-1][:-3]}.csv", 'wb') as crfile:
         crfile.write(res.content)
         crfile.flush()
     
@@ -110,9 +117,11 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
+    prod_version = inps.prod_version
 
     # read list of bursts used for validation
     validation_bursts = Path(inps.validation_bursts) #Path('validation_data/validation_bursts.csv')
+    print(f'Validation burst: {validation_bursts}')
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:
@@ -127,6 +136,7 @@ def main(inps):
 
     # access table of all S3 links
     validation_csv = Path(inps.validation_csv) #Path('validation_data/validation_table.csv')
+    print(f'Validation CSV: {validation_csv}')
     df_ = pd.read_csv(validation_csv)
     df = df_.drop_duplicates(subset=['burst_id', 'date'])
 
@@ -161,14 +171,14 @@ def main(inps):
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
                 # Set parameters
-                params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,ovsFactor,savedir])
+                params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],val_row['cslc_static_url'],burst_cr_network,snr_threshold,ovsFactor,savedir,prod_version])
         
         print(f'Number of CPUs your computer have: {os.cpu_count()}')
         print(f'Using {nprocs} CPUs for this processing.')
 
-        # Download CR data first
-        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
-            executor.map(download_crdata,params)
+        # # Download CR data first
+        # with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+        #     executor.map(download_crdata,params)
 
         # Run papermill
         time.sleep(5)
