@@ -42,7 +42,7 @@ def cslc2tiff(p):
     cslc_url = p[2]
     save_dir = f'{p[-1]}/{burst_id.upper()}/cslc'  
 
-    pol = cslc_url.split('/')[6].split('_')[5]
+    pol = cslc_url.split('/')[6].split('_')[7]
     s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
     cslc,xcoor,ycoor,dx,dy,epsg,sensing_start,sensing_stop,dims,bounding_polygon,orbit_direction,center_lon,center_lat = stream_cslc(s3f,pol)
     
