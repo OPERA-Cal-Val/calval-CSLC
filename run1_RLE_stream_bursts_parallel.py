@@ -44,8 +44,8 @@ def cslc2tiff(p):
 
     print(f'Product: {cslc_url}')
     cslc,xcoor,ycoor,dx,dy,epsg,sensing_start,sensing_stop,dims,bounding_polygon,orbit_direction,center_lon,center_lat = stream_cslc(cslc_url)
-    
     convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, cslc, date, save_dir)   #generating slc with vrt
+    
     return f'OPERA CSLC with burst_id ({burst_id}) for date ({date}) successfully stored in ({save_dir})'
 
 def main(inps):

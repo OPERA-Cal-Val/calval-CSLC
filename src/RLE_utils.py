@@ -12,7 +12,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 
 def stream_cslc(cslc_url):
-    pol = cslc_url.split('/')[6].split('_')[7]
+    pol = cslc_url.split('/')[6].split('_')[-2]
     s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
 
     try:
@@ -86,18 +86,11 @@ def stream_static_layers(cslc_static_url):
         s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
 
     with h5py.File(s3f,'r') as h5:
-        try:
-            DATA_ROOT = 'science/SENTINEL1'
-            grid_path = f'{DATA_ROOT}/CSLC/grids'
-            static_grid_path = f'science/SENTINEL1/CSLC/grids/static_layers'
-            incidence_angle = h5[f'{static_grid_path}/incidence'][:]
-            azimuth_angle = h5[f'{static_grid_path}/heading'][:]
-        except KeyError:
-            static_grid_path = f'data'
-            incidence_angle = h5[f'{static_grid_path}/incidence_angle'][:]
-            azimuth_angle = h5[f'{static_grid_path}/heading_angle'][:]
+        static_grid_path = f'data'
+        los_east = h5[f'{static_grid_path}/los_east'][:]
+        los_north = h5[f'{static_grid_path}/los_north'][:]    
 
-    return incidence_angle, azimuth_angle
+    return los_east, los_north
  
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
