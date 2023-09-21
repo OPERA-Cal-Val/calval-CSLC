@@ -11,16 +11,18 @@ import boto3
 from botocore import UNSIGNED
 from botocore.client import Config
 
-def stream_cslc(s3f,pol):
+def stream_cslc(cslc_url):
+    pol = cslc_url.split('/')[6].split('_')[7]
+    s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
+
     try:
-        DATA_ROOT = 'science/SENTINEL1'
-        grid_path = f'{DATA_ROOT}/CSLC/grids'
+        grid_path = f'data'
         metadata_path = f'metadata'
-        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
-        id_path = f'{DATA_ROOT}/identification'
+        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
+        id_path = f'identification'
 
         with h5py.File(s3f.open(),'r') as h5:
-            print(f'Streaming: {s3f}')  
+            # print(f'Streaming: {s3f}') 
             cslc = h5[f'{grid_path}/{pol}'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
@@ -35,13 +37,14 @@ def stream_cslc(s3f,pol):
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
 
     except KeyError:
-        grid_path = f'data'
+        DATA_ROOT = 'science/SENTINEL1'
+        grid_path = f'{DATA_ROOT}/CSLC/grids'
         metadata_path = f'metadata'
-        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
-        id_path = f'identification'
+        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+        id_path = f'{DATA_ROOT}/identification'
 
         with h5py.File(s3f.open(),'r') as h5:
-            # print(f'Streaming: {s3f}') 
+            # print(f'Streaming: {s3f}')  
             cslc = h5[f'{grid_path}/{pol}'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
@@ -125,7 +128,6 @@ def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
 def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,array):
     #generating geotiff file from 2D array
-
     cols = array.shape[1]
     rows = array.shape[0]
     originX = OriginX
