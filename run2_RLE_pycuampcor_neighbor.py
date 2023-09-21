@@ -163,9 +163,6 @@ def main(inps):
 
     #main offset tracking with pycuampcor
     for refd, secd, deviceID in zip(df['ref'],df['sec'],df['gpuID']):
-        if deviceID == 3:
-            deviceID = 7
-
         rgoff_file = out_dir + '/' + refd + '_' + secd + '.rg_off.tif'
         azoff_file = out_dir + '/' + refd + '_' + secd + '.az_off.tif'
         snr_file = out_dir + '/' + refd + '_' + secd + '.snr.tif'
