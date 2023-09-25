@@ -14,16 +14,15 @@ Collection utility functions to find the corner reflectors based on intensity pe
 
 def stream_cslc(s3f,pol):
     try:
-        DATA_ROOT = 'science/SENTINEL1'
-        grid_path = f'{DATA_ROOT}/CSLC/grids'
+        grid_path = f'data'
         metadata_path = f'metadata'
-        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
-        id_path = f'{DATA_ROOT}/identification'
+        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
+        id_path = f'identification'
 
         with h5py.File(s3f.open(),'r') as h5:
             cslc = h5[f'{grid_path}/{pol}'][:]
-            azimuth_carrier_phase = []
-            flattening_phase = []
+            azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
+            flattening_phase = h5[f'{grid_path}/flattening_phase'][:]
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
             dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
@@ -36,17 +35,18 @@ def stream_cslc(s3f,pol):
             orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
             center_lon, center_lat = h5[f'{burstmetadata_path}/center']
             wavelength = h5[f'{burstmetadata_path}/wavelength'][()].astype(str)
-
+            
     except KeyError:
-        grid_path = f'data'
+        DATA_ROOT = 'science/SENTINEL1'
+        grid_path = f'{DATA_ROOT}/CSLC/grids'
         metadata_path = f'metadata'
-        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
-        id_path = f'identification'
+        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+        id_path = f'{DATA_ROOT}/identification'
 
         with h5py.File(s3f.open(),'r') as h5:
             cslc = h5[f'{grid_path}/{pol}'][:]
-            azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
-            flattening_phase = h5[f'{grid_path}/flattening_phase'][:]
+            azimuth_carrier_phase = []
+            flattening_phase = []
             xcoor = h5[f'{grid_path}/x_coordinates'][:]
             ycoor = h5[f'{grid_path}/y_coordinates'][:]
             dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
