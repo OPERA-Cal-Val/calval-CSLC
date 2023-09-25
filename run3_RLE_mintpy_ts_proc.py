@@ -53,6 +53,11 @@ def main(inps):
 
     days = refDates + secDates
     days = list(np.unique(sorted(days)))
+    exclude_days_ = df[(df.ref<='20150515')]
+    exclude_days = exclude_days_.ref.unique()
+    days = (list(filter(lambda x: x not in exclude_days, days)) )
+
+    print(f'Removing CSLCs with dates: {exclude_days}')
 
     num_pairs = df.shape[0]   #number of pairs
     n_days = len(days)      #number of unique days

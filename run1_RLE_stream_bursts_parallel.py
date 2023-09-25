@@ -56,8 +56,6 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
-    # valBursts = inps.valBursts
-    # valTable = inps.valTable
 
     # read list of bursts used for validation
     validation_bursts = Path(inps.validation_bursts) #Path(valBursts)
@@ -90,7 +88,16 @@ def main(inps):
         # Start runtime evaluation
         start = timeit.default_timer()
 
-        # Create folders
+        # Delete existing cslc folder for re-run
+        if os.path.exists(savedir):
+            import shutil
+            cslcdir = f'{savedir}/{burstId.upper()}/cslc'
+            print(f'Deleting {cslcdir}')
+            shutil.rmtree(f'{cslcdir}')
+            #Create the directory 
+            os.makedirs(f'{savedir}/{burstId.upper()}/cslc')
+
+        # Create folder
         os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
         
         params = []
@@ -98,18 +105,8 @@ def main(inps):
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
 
-                enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
-
-                path_enlos2rdr = Path(enlos2rdr) 
-                if path_enlos2rdr.is_file():
-                    pass
-                else:
-                    #reading static layer
-                    los_east, los_north = stream_static_layers(val_row['cslc_static_url'])
-                    los_east = np.nanmean(los_east)
-                    los_north = np.nanmean(los_north)
-                    with open(enlos2rdr,'w') as f:
-                        f.write(f'{los_east} {los_north}')
+                # Get static layer url
+                cslc_static_url = val_row['cslc_static_url']
 
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],savedir])
@@ -122,6 +119,16 @@ def main(inps):
             for result in executor.map(cslc2tiff,params):
                 print(result)
 
+        # Load and get the mean value of the static layer
+        enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
+        path_enlos2rdr = Path(enlos2rdr) 
+        print(f"Reading the CSLC Static Layer: {cslc_static_url}")
+        los_east, los_north = stream_static_layers(cslc_static_url)
+        los_east = np.nanmean(los_east)
+        los_north = np.nanmean(los_north)
+        with open(enlos2rdr,'w') as f:
+            f.write(f'{los_east} {los_north}')
+    
         # End runtime evaluation
         stop = timeit.default_timer()
         print(f'Finished run for {burstId}')
