@@ -84,7 +84,6 @@ def download_crdata(p):
     sensing_time = dt.datetime.strptime(cslc_url.split('/')[-1].split('_')[4], '%Y%m%dT%H%M%SZ').strftime('%Y-%m-%d+%H\u0021%M')
 
     print(f"Downloading crdata_{cslc_url.split('/')[-1][:-3]}.csv")
-    #print(f'Saving to: {save_dir}')
     
     # Get date and download
     if cr_network=='Rosamond':
@@ -100,8 +99,7 @@ def download_crdata(p):
         raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
     
     # Write the crdata to file
-    with open(f'{save_dir}/crdata/crdata_{burst_id.upper()}_{date}.csv', 'wb') as crfile:
-    #with open(f"{save_dir}/crdata/crdata_{cslc_url.split('/')[-1][:-3]}.csv", 'wb') as crfile:
+    with open(f"{save_dir}/crdata/crdata_{cslc_url.split('/')[-1][:-3]}.csv", 'wb') as crfile:
         crfile.write(res.content)
         crfile.flush()
     
@@ -176,9 +174,9 @@ def main(inps):
         print(f'Number of CPUs your computer have: {os.cpu_count()}')
         print(f'Using {nprocs} CPUs for this processing.')
 
-        # # Download CR data first
-        # with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
-        #     executor.map(download_crdata,params)
+        # Download CR data first
+        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+            executor.map(download_crdata,params)
 
         # Run papermill
         time.sleep(5)
