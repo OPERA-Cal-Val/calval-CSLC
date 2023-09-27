@@ -98,6 +98,35 @@ def main(inps):
     savefn = f'{savedir}/{burst_id.upper()}/summary/RLE_{burst_id.upper()}.png'
     fig.savefig(savefn,dpi=300,bbox_inches='tight')
 
+    # Save the RLE Summary Rating as CSV
+    summary_df = pd.DataFrame()
+    summary_df['burst_id'] = None
+    summary_df['rating'] = None
+    summary_df['ref_date'] = None
+    summary_df['ground_range'] = None
+    summary_df['azimuth'] = None
+
+    burst_ids = []; rle_rating = []; ref_date = []; GRng = []; Az = []
+
+    if rg_pass_or_not and az_pass_or_not:
+        _dec = 'PASS'
+    else:
+        _dec = 'FAIL'
+
+    burst_ids.append(burst_id.upper())
+    rle_rating.append(_dec)
+    ref_date.append(dt.datetime.strftime(refDate,'%Y%m%d'))
+    GRng.append(f'{grng_avg} +/- {grng_std}')
+    Az.append(f'{azi_avg} +/- {azi_std}')
+
+    summary_df['burst_id'] = burst_ids
+    summary_df['rating'] = rle_rating
+    summary_df['ref_date'] = ref_date
+    summary_df['ground_range'] = GRng
+    summary_df['azimuth'] =Az
+
+    summary_df.to_csv(f'{savedir}/RLE_summary.csv', index=False, mode='a', header=False)
+
 if __name__ == '__main__':
     # load arguments from command line
     inps = createParser()

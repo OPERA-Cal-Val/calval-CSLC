@@ -89,16 +89,16 @@ def main(inps):
         start = timeit.default_timer()
 
         # Delete existing cslc folder for re-run
-        if os.path.exists(savedir):
+        if os.path.exists(f'{savedir}/{burstId.upper()}'):
             import shutil
             cslcdir = f'{savedir}/{burstId.upper()}/cslc'
             print(f'Deleting {cslcdir}')
             shutil.rmtree(f'{cslcdir}')
             #Create the directory 
             os.makedirs(f'{savedir}/{burstId.upper()}/cslc')
-
-        # Create folder
-        os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
+        else:
+            # Create folder
+            os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
         
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
