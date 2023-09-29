@@ -13,6 +13,10 @@ Collection utility functions to find the corner reflectors based on intensity pe
 '''
 
 def stream_cslc(s3f,pol):
+    '''
+    streaming OPERA CSLC in S3 bucket and retrieving CSLC and parameters from HDFs
+    '''
+
     try:
         grid_path = f'data'
         metadata_path = f'metadata'
@@ -79,6 +83,9 @@ def get_s3path(s3url):
     return path_h5
     
 def stream_static_layers(cslc_static_url):
+    '''
+    los east/north from streamed static layers in S3 bucket
+    '''
     try:
         s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
 
@@ -94,7 +101,11 @@ def stream_static_layers(cslc_static_url):
 
     return los_east, los_north
 
-def oversample_slc(slc,sampling=1,y=None,x=None):
+def oversample_slc(slc,sampling=32,y=None,x=None):
+    '''
+    oversampling slc for finding intensity peak using 2D FFT
+    output: oversampled slc and X/Y indices
+    '''
     if y is None:
         y = np.arange(slc.shape[0])
     if x is None:
@@ -119,15 +130,15 @@ def oversample_slc(slc,sampling=1,y=None,x=None):
 
 def findCR(data,y,x,x_bound=[-np.inf,np.inf],y_bound=[-np.inf,np.inf],method="sinc"):
     '''
-    Find the location of CR with fitting
+    Find the location of CR in 2D image with fitting using sinc or paraboloid function
     '''
     max_ind = np.argmax(data)
     max_data = data[max_ind]
     
-    def _sinc2D(x,x0,y0,a,b,c):
+    def _sinc2D(x,x0,y0,a,b,c):    #defining sinc func
         return c*np.sinc(a*(x[0]-x0))*np.sinc(b*(x[1]-y0))
     
-    def _para2D(x,x0,y0,a,b,c,d):
+    def _para2D(x,x0,y0,a,b,c,d):   #defining paraboloid func
         return a*(x[0]-x0)**2+b*(x[1]-y0)**2+c*(x[0]-x0)*(x[1]-y0)+d
 
     if method == "sinc":
@@ -170,6 +181,11 @@ def interpolate_correction_layers(xcoor, ycoor, data, method):
     return np.flipud(data_resampl)
 
 def en2rdr(E, N, az_angle, inc_angle):
+    '''
+    converting EN to ground range/azimuth geometry
+    E, N: east and north components (m)
+    az_angle, inc_angle: azimuth/incidence angle (deg)
+    '''
     rng = E * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle - 90)) * -1 + N * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle - 90)) 
     grng = rng / np.sin((np.deg2rad(inc_angle)))
     azi = E * np.sin(np.deg2rad(az_angle - 90)) * -1 + N * np.cos(np.deg2rad(az_angle - 90))
@@ -178,7 +194,7 @@ def en2rdr(E, N, az_angle, inc_angle):
 
 def enlos2rdr(E, N, los_e, los_n):
     '''
-    E, N: east and north components
+    E, N: east and north components (m)
     los_e, los_n: unit los vector in east and north
     '''
     
@@ -226,4 +242,9 @@ def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     return snr_peak_db
 
 def predicted_rcs(wavelength, slen):
+    '''
+    estimating maximum analytical radar cross section (RCS) at optimal settings
+    input: wavelength (m), slen (side length of CR; m)
+    output: maximum anlytical rcs (dB)
+    '''
     return 10*np.log10((4*np.pi*slen**4)/(3*wavelength**2))

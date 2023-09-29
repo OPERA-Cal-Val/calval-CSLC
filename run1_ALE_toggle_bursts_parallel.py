@@ -49,10 +49,7 @@ def run_papermill(p):
     cr_network = p[4]
     snr_threshold = p[5]
     prod_version = p[-1]
-    if cr_network == 'Rosamond':
-        solidtide='True'
-    else:
-        solidtide='False'
+    solidtide='False'
     ovsFactor = p[6]
     
     save_dir = f'{p[-2]}/{cr_network}/{burst_id.upper()}'

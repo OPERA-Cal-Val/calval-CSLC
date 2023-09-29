@@ -12,6 +12,9 @@ from botocore import UNSIGNED
 from botocore.client import Config
 
 def stream_cslc(cslc_url):
+    '''
+    streaming OPERA CSLC in S3 bucket and retrieving CSLC and parameters from HDFs
+    '''
     pol = cslc_url.split('/')[6].split('_')[-2]
     # s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
     with fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
@@ -77,6 +80,9 @@ def get_s3path(cslc_static_url):
     return path_h5
    
 def stream_static_layers(cslc_static_url):
+    '''
+    los east/north from streamed static layers in S3 bucket
+    '''
     try:
         # s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
         with fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
@@ -98,6 +104,9 @@ def stream_static_layers(cslc_static_url):
     return los_east, los_north
  
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
+     '''
+     converting transformation parameters to VRT file
+     '''
 
      os.makedirs(outdir,exist_ok=True)
 
@@ -142,10 +151,13 @@ def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,arr
     outband.FlushCache()
 
 def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
-    #offlist: offset filelist
-    #snrlist: snr filelist
-    #out_dir: output directory
-    #snr_thr: snr threshold
+    '''
+    applying simple SBAS method to offsets 
+    offlist: offset filelist
+    snrlist: snr filelist
+    out_dir: output directory
+    snr_thr: snr threshold
+    '''
 
     num_pairs = offlist.shape[0]
 
@@ -228,12 +240,16 @@ def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
     return _avg, _std, days
 
 def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25,nprocs=2):
-    #rgofflist: list of range offset files
-    #azofflist: list of azimuth offset files
-    #snrlist: list of snr files
-    #out_dir: output directory
-    #snr_thr: snr threshold
-    #q: quantile threshold for excluding outliers
+    '''
+    applying MintPy SBAS approach to offsets
+    rgofflist: list of range offset files
+    azofflist: list of azimuth offset files
+    snrlist: list of snr files
+    out_dir: output directory
+    snr_thr: snr threshold
+    q: quantile threshold for excluding outliers
+    '''
+    
 
     os.chdir(f'{out_dir}')
 
