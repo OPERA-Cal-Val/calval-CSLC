@@ -29,7 +29,7 @@ def createParser(iargs = None):
     parser.add_argument("--snr", dest="snr",
                          default=15, type=int, help='Signal-to-noise ratio threshold to remove corner reflectors outliers (default:15)')    
     parser.add_argument("--ovsFactor", dest="ovsFactor",
-                         default=32, type=int, help='Oversampling factor size to locate the peak amplitude (default: 32)')
+                         default=128, type=int, help='Oversampling factor size to locate the peak amplitude (default: 128)')
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
     parser.add_argument("--validation_bursts", dest="validation_bursts",
