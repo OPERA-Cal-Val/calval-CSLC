@@ -10,12 +10,10 @@ from scipy.signal import detrend
 def createParser(iargs = None):
     '''Commandline input parser'''
     parser = argparse.ArgumentParser(description='plotting time-series offsets from pycuampcor')
-    parser.add_argument("--csvfile", dest='csv',             
-            required=True,type=str, help='CSV file name for time-series RLE')
-    parser.add_argument("--pngfile", dest='png',
-            required=True,type=str, help='PNG file name for time-series RLE')
-    parser.add_argument("--enlos2rdr", dest='enlos2rdr',
-             required=True,type=str, help='csv file of unit los vector in east and north')
+    parser.add_argument("--savedir", dest='savedir', default='./RLE',             
+            required=True,type=str, help='Path to the parent RLE directory. i.e. ./RLE')
+    parser.add_argument("--burst_id", dest='burst_id',
+                         required=True, type=str, help='burst ID to be processed')        
     parser.add_argument("--refDate", dest='refDate',
              default='20150601', type=str, help='Reference date of the stack')
     parser.add_argument("--detrend", dest='detrend',
@@ -27,15 +25,17 @@ def if_pass(ts,requirement):
     pass_rate = np.count_nonzero(bool_pass)/len(bool_pass)
     return bool_pass, pass_rate, pass_rate>0.8
 
-def run(inps):
-
-    f = open(inps.enlos2rdr)
+def main(inps):
+    burst_id = inps.burst_id
+    savedir = inps.savedir
+    f = open(f'{savedir}/{burst_id.upper()}/cslc/enlos2rdr_{burst_id}.csv')
     los_east, los_north =f.read().split(' ')
     los_east = float(los_east); los_north = float(los_north)
     
     detrend_flag = inps.detrend
 
-    df = pd.read_csv(inps.csv) 
+    # Read summary offset
+    df = pd.read_csv(f'{savedir}/{burst_id.upper()}/summary/RLE_{burst_id.upper()}.csv') 
     df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
    
     grng, azi = enlos2rdr(df['rg_avg'],df['az_avg'], los_east, los_north) 
@@ -95,11 +95,41 @@ def run(inps):
     ax[1].legend(loc = 'lower right',frameon=True)
     ax[1].text(0.02,0.05,f'RLE in azimuth (m): {azi_avg}+/-{azi_std} \nReference Date: {refDate.date()}',transform = ax[1].transAxes)
     plt.tight_layout()
-    fig.savefig(inps.png,dpi=300,bbox_inches='tight')
+    savefn = f'{savedir}/{burst_id.upper()}/summary/RLE_{burst_id.upper()}.png'
+    fig.savefig(savefn,dpi=300,bbox_inches='tight')
+
+    # Save the RLE Summary Rating as CSV
+    summary_df = pd.DataFrame()
+    summary_df['burst_id'] = None
+    summary_df['rating'] = None
+    summary_df['ref_date'] = None
+    summary_df['ground_range'] = None
+    summary_df['azimuth'] = None
+
+    burst_ids = []; rle_rating = []; ref_date = []; GRng = []; Az = []
+
+    if rg_pass_or_not and az_pass_or_not:
+        _dec = 'PASS'
+    else:
+        _dec = 'FAIL'
+
+    burst_ids.append(burst_id.upper())
+    rle_rating.append(_dec)
+    ref_date.append(dt.datetime.strftime(refDate,'%Y%m%d'))
+    GRng.append(f'{grng_avg} +/- {grng_std}')
+    Az.append(f'{azi_avg} +/- {azi_std}')
+
+    summary_df['burst_id'] = burst_ids
+    summary_df['rating'] = rle_rating
+    summary_df['ref_date'] = ref_date
+    summary_df['ground_range'] = GRng
+    summary_df['azimuth'] =Az
+
+    summary_df.to_csv(f'{savedir}/RLE_summary.csv', index=False, mode='a', header=False)
 
 if __name__ == '__main__':
     # load arguments from command line
     inps = createParser()
     
     # Run workflow
-    run(inps)
+    main(inps)

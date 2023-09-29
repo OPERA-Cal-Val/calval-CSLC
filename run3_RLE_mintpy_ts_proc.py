@@ -26,16 +26,16 @@ def createParser(iargs = None):
 
 def main(inps):
 
-    offset_dir = f'{inps.inputDir}/offsets'
     snr_th = inps.snr
     tsmethod = inps.tsmethod
     burst_id = inps.burst_id
+    offset_dir = f'{inps.inputDir}/{burst_id.upper()}/offsets'
     nprocs = inps.nprocs
 
     # Create necessary folders
-    os.makedirs(f'{inps.inputDir}/mintpy', exist_ok=True)
-    os.makedirs(f'{inps.inputDir}/summary', exist_ok=True)
-    savedir = f'{inps.inputDir}/mintpy'
+    os.makedirs(f'{inps.inputDir}/{burst_id.upper()}/mintpy', exist_ok=True)
+    os.makedirs(f'{inps.inputDir}/{burst_id.upper()}/summary', exist_ok=True)
+    savedir = f'{inps.inputDir}/{burst_id.upper()}/mintpy'
 
     list_rg_tif = glob.glob(f'{offset_dir}/*.rg_off.tif')  #geotiff of range offsets
 
@@ -53,6 +53,11 @@ def main(inps):
 
     days = refDates + secDates
     days = list(np.unique(sorted(days)))
+    exclude_days_ = df[(df.ref<='20150515')]
+    exclude_days = exclude_days_.ref.unique()
+    days = (list(filter(lambda x: x not in exclude_days, days)) )
+
+    print(f'Removing CSLCs with dates: {exclude_days}')
 
     num_pairs = df.shape[0]   #number of pairs
     n_days = len(days)      #number of unique days
@@ -79,7 +84,7 @@ def main(inps):
     df = None
     _ = {'date':days, 'rg_avg':rg_avg, 'rg_std':rg_std, 'az_avg':az_avg, 'az_std':az_std}
     df = pd.DataFrame.from_dict(_)
-    df.to_csv(f'{inps.inputDir}/summary/RLE_{burst_id.upper()}.csv', index=False)
+    df.to_csv(f'{inps.inputDir}/{burst_id.upper()}/summary/RLE_{burst_id.upper()}.csv', index=False)
 
 if __name__ == '__main__':
     # load arguments from command line

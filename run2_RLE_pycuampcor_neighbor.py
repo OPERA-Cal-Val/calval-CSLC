@@ -7,6 +7,8 @@ import numpy as np
 import os, time
 import glob
 import subprocess
+import shutil
+from numba import cuda
 
 def sort_pair(days,minDelta=5,maxDelta=90):
     '''
@@ -63,6 +65,8 @@ def createParser(iargs = None):
                          required=True, type=str, help='burst ID to be processed')
     parser.add_argument("--out_dir", dest="out_dir",
             default='outputs', type=str, help='output directory for offset results (default: outputs)')
+    parser.add_argument("--num_gpu", dest="num_gpu",
+            default=1, type=int, help='number of GPUs to use (default: 1)')
     parser.add_argument("--neighbor", dest="neighbor",
             default=3, type=int, help='number of neighboring pairs (default: 3)')
     parser.add_argument("--ww", dest="ww",
@@ -84,6 +88,10 @@ def main(inps):
     
     out_dir = f'{inputDir}/{burst_id.upper()}/{inps.out_dir}'
 
+    if os.path.exists(out_dir):
+        print(f'Deleting {out_dir}')
+        shutil.rmtree(out_dir)
+
     filelist = sorted(glob.glob(f'{cslc_dir}/2*slc'))
     datels = []   #list of date
     for _ in filelist:
@@ -101,7 +109,8 @@ def main(inps):
 
     #parameters for gpu processing
     num_gpu = subprocess.getoutput('nvidia-smi --list-gpus | wc -l')
-    num_gpu = int(num_gpu)
+    #num_gpu = int(num_gpu)
+    num_gpu = inps.num_gpu
     print(f'number of GPU: {num_gpu} \n')
 
     #generating neighboring pairs
@@ -154,7 +163,6 @@ def main(inps):
 
     #main offset tracking with pycuampcor
     for refd, secd, deviceID in zip(df['ref'],df['sec'],df['gpuID']):
-
         rgoff_file = out_dir + '/' + refd + '_' + secd + '.rg_off.tif'
         azoff_file = out_dir + '/' + refd + '_' + secd + '.az_off.tif'
         snr_file = out_dir + '/' + refd + '_' + secd + '.snr.tif'
@@ -165,6 +173,11 @@ def main(inps):
             cmd = f'python src/offset_pycuampcor.py --slc_dir {cslc_dir} --dateref {refd} --datesec {secd} --deviceID {deviceID} --out_dir {out_dir} --ww {windowSizeWidth} --wh {windowSizeHeight} --nwdc {numberWindowDownInChunk} --nwac {numberWindowAcrossInChunk}'
             print(cmd)
             processes.add(subprocess.Popen(cmd.split(' ')))
+
+            # Release cuda memory
+            cuda.select_device(deviceID)
+            cuda.close()
+
             if len(processes) >= max_processes:
                 os.wait()
                 processes.difference_update([p for p in processes if p.poll() is not None])

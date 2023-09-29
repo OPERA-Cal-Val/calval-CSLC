@@ -42,11 +42,10 @@ def cslc2tiff(p):
     cslc_url = p[2]
     save_dir = f'{p[-1]}/{burst_id.upper()}/cslc'  
 
-    pol = cslc_url.split('/')[6].split('_')[7]
-    s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
-    cslc,xcoor,ycoor,dx,dy,epsg,sensing_start,sensing_stop,dims,bounding_polygon,orbit_direction,center_lon,center_lat = stream_cslc(s3f,pol)
-    
+    print(f'Product: {cslc_url}')
+    cslc,xcoor,ycoor,dx,dy,epsg,sensing_start,sensing_stop,dims,bounding_polygon,orbit_direction,center_lon,center_lat = stream_cslc(cslc_url)
     convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, cslc, date, save_dir)   #generating slc with vrt
+    
     return f'OPERA CSLC with burst_id ({burst_id}) for date ({date}) successfully stored in ({save_dir})'
 
 def main(inps):
@@ -57,8 +56,6 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
-    # valBursts = inps.valBursts
-    # valTable = inps.valTable
 
     # read list of bursts used for validation
     validation_bursts = Path(inps.validation_bursts) #Path(valBursts)
@@ -91,14 +88,24 @@ def main(inps):
         # Start runtime evaluation
         start = timeit.default_timer()
 
-        # Create folders
-        os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
+        # Delete existing cslc folder for re-run
+        if os.path.exists(f'{savedir}/{burstId.upper()}'):
+            import shutil
+            cslcdir = f'{savedir}/{burstId.upper()}/cslc'
+            print(f'Deleting {cslcdir}')
+            shutil.rmtree(f'{cslcdir}')
+            #Create the directory 
+            os.makedirs(f'{savedir}/{burstId.upper()}/cslc')
+        else:
+            # Create folder
+            os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
         
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
 
+<<<<<<< HEAD
                 enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
 
                 path_enlos2rdr = Path(enlos2rdr) 
@@ -111,6 +118,10 @@ def main(inps):
                     los_north = np.nanmean(los_north)
                     with open(enlos2rdr,'w') as f:
                         f.write(f'{los_east} {los_north}')
+=======
+                # Get static layer url
+                cslc_static_url = val_row['cslc_static_url']
+>>>>>>> 03a966cd6c419a2ab1748ca9f7c54b4b2220abba
 
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],savedir])
@@ -123,6 +134,16 @@ def main(inps):
             for result in executor.map(cslc2tiff,params):
                 print(result)
 
+        # Load and get the mean value of the static layer
+        enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
+        path_enlos2rdr = Path(enlos2rdr) 
+        print(f"Reading the CSLC Static Layer: {cslc_static_url}")
+        los_east, los_north = stream_static_layers(cslc_static_url)
+        los_east = np.nanmean(los_east)
+        los_north = np.nanmean(los_north)
+        with open(enlos2rdr,'w') as f:
+            f.write(f'{los_east} {los_north}')
+    
         # End runtime evaluation
         stop = timeit.default_timer()
         print(f'Finished run for {burstId}')
