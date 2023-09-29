@@ -105,23 +105,8 @@ def main(inps):
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
                 and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') <= dt.datetime.strptime(endDate,'%Y%m%d')):
 
-<<<<<<< HEAD
-                enlos2rdr = f'{savedir}/{burstId.upper()}/cslc/enlos2rdr_{burstId}.csv'  #enlos2rdr file (los_east, los_north) for converting EN to RDR
-
-                path_enlos2rdr = Path(enlos2rdr) 
-                if path_enlos2rdr.is_file():
-                    pass
-                else:
-                    #reading static layer
-                    los_east, los_north = stream_static_layers(val_row['cslc_static_url'])
-                    los_east = np.nanmean(los_east)
-                    los_north = np.nanmean(los_north)
-                    with open(enlos2rdr,'w') as f:
-                        f.write(f'{los_east} {los_north}')
-=======
                 # Get static layer url
                 cslc_static_url = val_row['cslc_static_url']
->>>>>>> 03a966cd6c419a2ab1748ca9f7c54b4b2220abba
 
                 # Set parameters
                 params.append([val_row['date'],val_row['burst_id'],val_row['cslc_url'],savedir])
