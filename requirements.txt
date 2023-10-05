@@ -12,7 +12,9 @@
  netcdf4
  numpy
  pandas
+ pillow
  pysolid
+ pypdf2
  pyproj
  rasterio
  ruamel.yaml
@@ -31,5 +33,6 @@
  papermill
  pytest
  pytest-cov
+ pdfkit
  setuptools
  setuptools_scm
