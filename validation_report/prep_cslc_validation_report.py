@@ -18,6 +18,7 @@ from wand.image import Image
 # set matplotlib font
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 
+
 def create_parser():
     """ Initiate input parser"""
 
@@ -116,7 +117,8 @@ def concatenate_pdf_pages(input_pdf,
 def add_text(output_pdf,
              header_txt,
              font_size=48,
-             fill_color='black',
+             font_color='black',
+             bck_color='#CCCCCC',
              pos_x=40,
              pos_y=60):
     """ Add title text for a given page"""
@@ -128,9 +130,9 @@ def add_text(output_pdf,
         # Set the font properties
         draw.font = 'Helvetica'
         draw.font_size = font_size
-        draw.fill_color = Color(fill_color)
+        draw.fill_color = Color(font_color)
         # add gray background to text
-        draw.text_under_color = Color('#CCCCCC')
+        draw.text_under_color = Color(bck_color)
         # Add the text to the image
         draw.text(pos_x, pos_y, header_txt)
         draw(pdf_tot)
@@ -170,7 +172,7 @@ def resize_img(source_file,
         # Resize the image using the Lanczos filter (high-quality)
         resized_img = img.resize((src_wid, src_hgt), PIL_Image.LANCZOS)
         # Save the resized image
-        resized_img.save(tmp_source_file, dpi=(1200, 1200))
+        resized_img.save(tmp_source_file, dpi=(resolution, resolution))
         del img, resized_img
         img = Image(filename=tmp_source_file)
         Path(tmp_source_file).unlink()
@@ -184,12 +186,13 @@ def resize_img(source_file,
 def png_wrapper(pngs_paired,
                 burst,
                 output_pdf,
+                page_counter,
                 width,
                 height,
                 resolution,
                 visual_type,
                 top_buffer=0,
-                fill_color='black'):
+                font_color='black'):
     """ Loop through all input images"""
     # loop through each summary png
     for input_pngs in pngs_paired:
@@ -226,10 +229,16 @@ def png_wrapper(pngs_paired,
                 burst_date = burst_date.split('.png')[0]
                 burst_date = burst_date.split('_')[-1]
                 header_txt = f'ALE: burst {burst}, date {burst_date}'
-            if visual_type == 'RLE_indiv':
-                header_txt = f'RLE: burst {burst}'
-            add_text(temp_pdf2, header_txt, font_size=32,
-                     fill_color=fill_color, pos_x=40, pos_y=40)
+            if visual_type == 'RLE_summary':
+                header_txt = f'RLE: summary for burst {burst}'
+            add_text(temp_pdf2, header_txt, font_size=28,
+                     font_color=font_color, pos_x=40, pos_y=40)
+            # add page number in footer
+            page_counter += 1
+            ft_x = int((width/2)-10)
+            ft_y = int((height*2)-10)
+            add_text(temp_pdf2, str(page_counter), font_size=25,
+                     bck_color='white', pos_x=ft_x, pos_y=ft_y)
 
             # append page to cal/val report
             concatenate_pdf_pages(temp_pdf2, output_pdf)
@@ -240,14 +249,19 @@ def png_wrapper(pngs_paired,
             if Path(temp_pdf2).exists():
                 Path(temp_pdf2).unlink()
 
-    return
+    return page_counter
 
 
 def csv_wrapper(input_csv,
-                output_pdf):
+                output_pdf,
+                pngs_paired,
+                pg_num):
     """ Loop through all input csvs"""
     # Read the CSV data using Pandas
     df = pd.read_csv(input_csv, dtype=str)
+
+    # sort by location and then burst ID
+    df = df.sort_values(by=['Location', 'Burst ID'])
 
     # assign 3 sig figs to measurements
     df_val_cols = ['Delta Ground Range (m)',
@@ -273,21 +287,25 @@ def csv_wrapper(input_csv,
     df.drop(['Delta Azimuth (m)', 'Delta Azimuth stdev (m)'],
             axis=1, inplace=True)
 
-    # highlight failed row(s) in pink
-    table_wid = df.shape[1]
-    if 'ALE' in Path(output_pdf).name:
-        cell_colors = [i for i in df['ALE (Pass/Fail)']]
-    if 'RLE' in Path(output_pdf).name:
-        cell_colors = [i for i in df['RLE (Pass/Fail)']]
-    for i in enumerate(cell_colors):
-        if i[1].lower() == 'pass':
-            cell_colors[i[0]] = ['white'] * table_wid
-        else:
-            cell_colors[i[0]] = ['#FFC0CB'] * table_wid
+    # pass burst IDs
+    burst_col = df['Burst ID'].to_list()
+    burst_ids = [i[:15] for i in burst_col]
+    # get page number for each burst ID
+    burst_pg = 0
+    burst_pg += pg_num
+    pg_num_list = []
+    for i in burst_ids:
+        pg_num_list.append(burst_pg)
+        # count pages for a given burst
+        burst_pg += len([j for j in pngs_paired if i in Path(j[0]).name])
+        # increment by 1 to account for ALE summary plot page
+        if 'ALE' in Path(output_pdf).name:
+            burst_pg += 1
+    df['Page #'] = pg_num_list
 
     # set dims, and scale by expected page size (hardcoded ratios)
-    fig_w = 16 * (800/576)
-    fig_l = 24 * (600/432)
+    fig_w = 22.2  # 16 * (800/576)
+    fig_l = 28.8  # 20.736 * (600/432)
 
     # Create a figure and axis for the plot
     fig = plt.figure(figsize=(fig_w, fig_l))
@@ -297,11 +315,11 @@ def csv_wrapper(input_csv,
     table = ax.table(cellText=df.values,
                      colLabels=df.columns,
                      loc='center',
-                     cellColours=cell_colors)
+                     cellLoc='center')
 
     # Style the table
     table.auto_set_font_size(False)
-    table.set_fontsize(30)
+    table.set_fontsize(22)
     table.scale(1.2, 2.8)
 
     # Remove the axis
@@ -313,7 +331,34 @@ def csv_wrapper(input_csv,
     # Close the figure
     plt.close()
 
-    return
+    # Add table title
+    if 'ALE' in Path(output_pdf).name:
+        tbl_title = 'Summary of Absolute Location Error (ALE) ' \
+                    'in Corner reflectors'
+    if 'RLE' in Path(output_pdf).name:
+        tbl_title = 'Summary of Relative Location Error (RLE)'
+    add_text(output_pdf, tbl_title, font_size=28,
+             bck_color='white', pos_x=40, pos_y=40)
+
+    # Add caption
+    passing_rate = (df.iloc[:, 2] == 'PASS').sum() / len(df.iloc[:, 2]) * 100
+    passing_rate = int(passing_rate)
+    tbl_txt = f'{passing_rate}% of validation data met requirement'
+    if 'ALE' in Path(output_pdf).name:
+        add_text(output_pdf, tbl_txt, font_size=22,
+                 bck_color='white', pos_x=76, pos_y=1246)
+        tbl_txt = '* Bursts excluded in the overall CalVal evaluation ' + \
+                  'due to unreliable corner reflector measurements.'
+        add_text(output_pdf, tbl_txt, font_size=22,
+                 bck_color='white', pos_x=76, pos_y=1280)
+        tbl_txt = 'Offsets are presented for reporting purposes only.'
+        add_text(output_pdf, tbl_txt, font_size=22,
+                 bck_color='white', pos_x=76, pos_y=1314)
+    if 'RLE' in Path(output_pdf).name:
+        add_text(output_pdf, tbl_txt, font_size=22,
+                 bck_color='white', pos_x=76, pos_y=1950)
+
+    return burst_ids, burst_pg
 
 
 def update_pdf(output_pdf,
@@ -357,7 +402,7 @@ def prep_cslc_report(inps):
     """ Create a CSLC Cal/Val report"""
     # hardcode output page dims/resolution
     width = 1600
-    height = 1200
+    height = 1035
     resolution = 1200
 
     # pass inputs as Path objects
@@ -369,6 +414,11 @@ def prep_cslc_report(inps):
     if not inps.outdir.exists():
         inps.outdir.mkdir(parents=True, exist_ok=True)
 
+    # find all csvs
+    csvs_files = [str(i) for i in inps.cdir.glob('*.csv')]
+    if not csvs_files:
+        raise Exception(f'No csvs found in specified path -c {inps.cdir}')
+
     # check if specified output file already exists
     output_pdf = inps.outdir / inps.fname
     if output_pdf.exists():
@@ -376,111 +426,123 @@ def prep_cslc_report(inps):
 
     # find all pngs
     png_files = [str(i) for i in inps.pdir.glob('*.png')]
+    # remove unwanted summary file(s)
+    png_files = [i for i in png_files
+                 if 'grazi_all.png' != Path(i).name[-13:]]
     if not png_files:
         raise Exception(f'No images found in specified path -p {inps.pdir}')
 
     # exit if a mix of ALE and RLE figures are found in a given subdirectory
-    ale_pngs = [i for i in png_files if 'ALE' in Path(i).name]
-    rle_pngs = [i for i in png_files if 'RLE' in Path(i).name]
-    if ale_pngs != [] and rle_pngs != []:
-        raise Exception(f'Mix of RLE and ALE pngs found in -p {inps.pdir}')
+    ale_pngs = [i for i in png_files if Path(i).name.startswith('ALE_')
+                or Path(i).name.startswith('OPERA_L2_CSLC-')]
+    rle_pngs = [i for i in png_files if Path(i).name.startswith('RLE_')]
 
-    # separate out summary pngs
-    summary_pngs = [i for i in png_files if 'summary' in Path(i).name]
-    ale_pdf = False
     # sort and split into pairs, if ALE figures captured
-    if summary_pngs != []:
-        ale_pdf = True
-        summary_pngs = sorted(summary_pngs,
-                              key=lambda x: Path(x).name[:38])
-        summary_pngs_paired = [summary_pngs[i:i + 2]
-                               for i in range(0, len(summary_pngs), 2)]
-
-    # get individual burst pngs
-    burst_pngs = [i for i in png_files if i not in summary_pngs]
-    # sort and split into pairs, if ALE figures captured
-    if summary_pngs != []:
-        burst_pngs = sorted(burst_pngs, key=lambda x:
-                            Path(x).name[:3], reverse=True)
+    ale_burst_pngs_paired = []
+    rle_burst_pngs_paired = []
+    ale_burst_ids = []
+    rle_burst_ids = []
+    if ale_pngs != []:
+        # separate out summary pngs
+        ale_summary_pngs = [i for i in ale_pngs
+                            if 'ALE_summary' in Path(i).name]
+        ale_summary_pngs = sorted(ale_summary_pngs,
+                                  key=lambda x: Path(x).name[:38])
+        ale_summary_pngs_paired = [ale_summary_pngs[i:i + 2]
+                                   for i in range(0, len(ale_summary_pngs), 2)]
+        # get individual burst pngs
+        burst_pngs = [i for i in png_files if i not in ale_summary_pngs]
+        burst_pngs = [i for i in burst_pngs
+                      if Path(i).name.startswith('OPERA_L2_CSLC-')]
+        # sort and split into pairs
         burst_pngs = sorted(burst_pngs,
                             key=lambda x: x[-28:])
-        burst_pngs_paired = [burst_pngs[i:i + 2]
-                             for i in range(0, len(burst_pngs), 2)]
+        for i in burst_pngs:
+            ale_plt = Path(i).name
+            ale_plt = 'ALE_' + ale_plt.split('_')[3] + '_' + ale_plt[-28:]
+            ale_plt = inps.pdir / ale_plt
+            if ale_plt.exists():
+                ale_pair = [i, str(ale_plt)]
+            else:
+                continue
+            ale_burst_pngs_paired.append(ale_pair)
         # get list of burst IDs
-        burst_ids = [Path(i[0]).name[26:-13]
-                     for i in burst_pngs_paired]
+        ale_burst_ids = [Path(i[0]).name[-28:-13]
+                         for i in ale_burst_pngs_paired]
+        ale_burst_ids = sorted(list(set(ale_burst_ids)))
     # sort RLE figures
-    else:
-        burst_pngs_paired = sorted(burst_pngs,
-                                   key=lambda x: x[-19:])
-        burst_pngs_paired = [[i] for i in burst_pngs_paired]
-        burst_ids = [Path(i[0]).name.split('.png')[0][4:]
-                     for i in burst_pngs_paired]
+    if rle_pngs != []:
+        # get individual burst pngs
+        burst_pngs = [i for i in rle_pngs
+                      if 'RLE_summary' not in Path(i).name]
+        burst_pngs = sorted(burst_pngs,
+                            key=lambda x: x[-19:])
+        rle_burst_ids = [Path(i).name.split('.png')[0][4:]
+                         for i in burst_pngs]
+        rle_burst_ids = sorted(list(set(rle_burst_ids)))
+        for i in rle_burst_ids:
+            rle_iter = [str(inps.pdir / f'RLE_summary_{i}_grazi_mean.png'),
+                        str(inps.pdir / f'RLE_{i}.png')]
+            rle_burst_pngs_paired.append(rle_iter)
 
-    # get list of burst IDs
-    burst_ids = sorted(list(set(burst_ids)))
-
-
-    # find all csvs
-    csvs_files = [str(i) for i in inps.cdir.glob('*.csv')]
-    if not csvs_files:
-        raise Exception(f'No csvs found in specified path -c {inps.cdir}')
-
-    # exit if a mix of ALE and RLE csvs are found in a given subdirectory
-    ale_csvs = [i for i in csvs_files if 'ALE' in Path(i).name]
-    rle_csvs = [i for i in csvs_files if 'RLE' in Path(i).name]
-    if ale_csvs != [] and rle_csvs != []:
-        raise Exception(f'Mix of RLE and ALE csvs found in -p {inps.cdir}')
-
-
-    # initialize output file with validation map
-    validation_map = 'cslc_validation_sites.png'
-    update_pdf(output_pdf, validation_map, width, height, resolution)
-    # add text
-    header_txt = 'Validation sites'
-    add_text(output_pdf, header_txt, pos_x=40, pos_y=40)
-    # rescale page
-    pdf_rescale = resize_img(output_pdf,
-                             width,
-                             height*2,
-                             resolution)
-    pdf_rescale.save(filename=output_pdf)
-    del pdf_rescale
-
+    # initialize output file with validation map, if generating aLE
+    if ale_pngs != []:
+        validation_map = 'CSLC_Calval_template.pdf'
+        output_pdf.write_bytes(Path(validation_map).read_bytes())
 
     # add table from CSV file
+    page_counter = 0
+    ale_pg_num = len(csvs_files)+1
+    rle_pg_num = len(csvs_files)+1
     for csv_f in csvs_files:
         output_csvpdf = Path(csv_f).name.replace('.csv', '.pdf')
         output_csvpdf = inps.outdir / output_csvpdf
-        # create pdf from table
-        csv_wrapper(csv_f, output_csvpdf)
+        # create pdf from table, and pass burst IDs
+        if 'ALE' in Path(csv_f).name:
+            ale_burst_ids, ale_pg_num = csv_wrapper(csv_f, output_csvpdf,
+                                                    ale_burst_pngs_paired,
+                                                    ale_pg_num)
+            # increment rle page number
+            rle_pg_num = ale_pg_num
+        if 'RLE' in Path(csv_f).name:
+            rle_burst_ids, rle_pg_num = csv_wrapper(csv_f, output_csvpdf,
+                                                    rle_burst_pngs_paired,
+                                                    rle_pg_num)
+        # add page number in footer
+        page_counter += 1
+        ft_x = int((width/2)-10)
+        ft_y = int((height*2)-10)
+        add_text(output_csvpdf, str(page_counter), font_size=25,
+                 bck_color='white', pos_x=ft_x, pos_y=ft_y)
         # append to report
-        concatenate_pdf_pages(output_csvpdf, output_pdf)
+        if not output_pdf.exists():
+            output_pdf.write_bytes(output_csvpdf.read_bytes())
+        else:
+            concatenate_pdf_pages(output_csvpdf, output_pdf)
         # delete temp file
         output_csvpdf.unlink()
 
-
-    # loop through each burst
-    for burst in tqdm(burst_ids, desc="Processing burst"):
-        # if ALE figures captured
-        print(burst)
-        if ale_pdf is True:
-            # loop through each summary png
-            png_wrapper(summary_pngs_paired, burst, output_pdf,
-                        width, height, resolution,
-                        visual_type='ALE_summary',
-                        top_buffer=60, fill_color='red')
-            # loop through each ALE png
-            png_wrapper(burst_pngs_paired, burst, output_pdf,
-                        width, height, resolution,
-                        visual_type='ALE_indiv',
-                        top_buffer=0, fill_color='black')
-        else:
-            # loop through each ALE png
-            png_wrapper(burst_pngs_paired, burst, output_pdf,
-                        width, height, resolution,
-                        visual_type='RLE_indiv',
-                        top_buffer=0, fill_color='black')
+    # if ALE figures captured
+    for burst in tqdm(ale_burst_ids, desc="Processing burst"):
+        print('ALE', burst)
+        # loop through each summary png
+        page_counter = png_wrapper(ale_summary_pngs_paired, burst, output_pdf,
+                                   page_counter, width, height, resolution,
+                                   visual_type='ALE_summary',
+                                   top_buffer=60, font_color='red')
+        # loop through each ALE png
+        page_counter = png_wrapper(ale_burst_pngs_paired, burst, output_pdf,
+                                   page_counter, width, height, resolution,
+                                   visual_type='ALE_indiv',
+                                   top_buffer=0, font_color='black')
+    # if RLE figures captured
+    for burst in tqdm(rle_burst_ids, desc="Processing burst"):
+        print('RLE', burst)
+        # loop through each RLE png
+        page_counter = png_wrapper(rle_burst_pngs_paired, burst, output_pdf,
+                                   page_counter, width, height, resolution,
+                                   visual_type='RLE_summary',
+                                   top_buffer=0, font_color='black')
 
     print(f'PDF created: {output_pdf}')
 
