@@ -2,20 +2,121 @@ import numpy as np
 import math
 import scipy
 import isce3
+import h5py
+import fsspec
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 
 '''
 Collection utility functions to find the corner reflectors based on intensity peak
 '''
 
-def oversample_slc(slc,sampling=1,y=None,x=None):
+def stream_cslc(s3f,pol):
+    '''
+    streaming OPERA CSLC in S3 bucket and retrieving CSLC and parameters from HDFs
+    '''
+
+    try:
+        grid_path = f'data'
+        metadata_path = f'metadata'
+        burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
+        id_path = f'identification'
+
+        with h5py.File(s3f.open(),'r') as h5:
+            cslc = h5[f'{grid_path}/{pol}'][:]
+            azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
+            flattening_phase = h5[f'{grid_path}/flattening_phase'][:]
+            xcoor = h5[f'{grid_path}/x_coordinates'][:]
+            ycoor = h5[f'{grid_path}/y_coordinates'][:]
+            dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+            dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+            epsg = h5[f'{grid_path}/projection'][()].astype(int)
+            sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+            sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+            dims = h5[f'{burstmetadata_path}/shape'][:]
+            bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+            orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+            center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+            wavelength = h5[f'{burstmetadata_path}/wavelength'][()].astype(str)
+            
+    except KeyError:
+        DATA_ROOT = 'science/SENTINEL1'
+        grid_path = f'{DATA_ROOT}/CSLC/grids'
+        metadata_path = f'metadata'
+        burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+        id_path = f'{DATA_ROOT}/identification'
+
+        with h5py.File(s3f.open(),'r') as h5:
+            cslc = h5[f'{grid_path}/{pol}'][:]
+            azimuth_carrier_phase = []
+            flattening_phase = []
+            xcoor = h5[f'{grid_path}/x_coordinates'][:]
+            ycoor = h5[f'{grid_path}/y_coordinates'][:]
+            dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+            dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+            epsg = h5[f'{grid_path}/projection'][()].astype(int)
+            sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+            sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+            dims = h5[f'{burstmetadata_path}/shape'][:]
+            bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+            orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+            center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+            wavelength = h5[f'{burstmetadata_path}/wavelength'][()].astype(str)
+    
+    return cslc, azimuth_carrier_phase, flattening_phase, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat, wavelength
+
+def get_s3path(s3url):
+    burst_id = s3url.split('/')[-1].split('_')[4]
+    print(f'The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
+    buckt = s3url.split('/')[2]
+    prefx = f"{s3url.split('/')[3]}/{s3url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+    client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+    result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
+
+    path_h5 = []
+    for o in result.get('CommonPrefixes'):
+        path = o.get('Prefix')
+        if path.split('/')[-2].split("_")[-1] == 'layers':
+            path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
+
+    return path_h5
+    
+def stream_static_layers(cslc_static_url):
+    '''
+    los east/north from streamed static layers in S3 bucket
+    '''
+    try:
+        s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    except FileNotFoundError:
+        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+        print(f'New static layer file: {new_cslc_static_url}')
+        s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    with h5py.File(s3f,'r') as h5:
+        static_grid_path = f'data'
+        los_east = h5[f'{static_grid_path}/los_east'][:]
+        los_north = h5[f'{static_grid_path}/los_north'][:]    
+
+    return los_east, los_north
+
+def oversample_slc(slc,sampling=32,y=None,x=None):
+    '''
+    oversampling slc for finding intensity peak using 2D FFT
+    output: oversampled slc and X/Y indices
+    '''
     if y is None:
         y = np.arange(slc.shape[0])
     if x is None:
         x = np.arange(slc.shape[1])
 
-    [rows, cols] = np.shape(slc)
+    [rows, cols] = np.shape(slc)    
     
-    slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
+    try:
+        slcovs = isce3.cal.point_target_info.oversample(slc,sampling)
+    except AttributeError:
+        slcovs = isce3.signal.point_target_info.oversample(slc,sampling)
 
     y_orign_step = y[1]-y[0]
     y_ovs_step = y_orign_step/sampling
@@ -29,15 +130,15 @@ def oversample_slc(slc,sampling=1,y=None,x=None):
 
 def findCR(data,y,x,x_bound=[-np.inf,np.inf],y_bound=[-np.inf,np.inf],method="sinc"):
     '''
-    Find the location of CR with fitting
+    Find the location of CR in 2D image with fitting using sinc or paraboloid function
     '''
     max_ind = np.argmax(data)
     max_data = data[max_ind]
     
-    def _sinc2D(x,x0,y0,a,b,c):
+    def _sinc2D(x,x0,y0,a,b,c):    #defining sinc func
         return c*np.sinc(a*(x[0]-x0))*np.sinc(b*(x[1]-y0))
     
-    def _para2D(x,x0,y0,a,b,c,d):
+    def _para2D(x,x0,y0,a,b,c,d):   #defining paraboloid func
         return a*(x[0]-x0)**2+b*(x[1]-y0)**2+c*(x[0]-x0)*(x[1]-y0)+d
 
     if method == "sinc":
@@ -80,10 +181,28 @@ def interpolate_correction_layers(xcoor, ycoor, data, method):
     return np.flipud(data_resampl)
 
 def en2rdr(E, N, az_angle, inc_angle):
+    '''
+    converting EN to ground range/azimuth geometry
+    E, N: east and north components (m)
+    az_angle, inc_angle: azimuth/incidence angle (deg)
+    '''
     rng = E * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle - 90)) * -1 + N * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle - 90)) 
     grng = rng / np.sin((np.deg2rad(inc_angle)))
     azi = E * np.sin(np.deg2rad(az_angle - 90)) * -1 + N * np.cos(np.deg2rad(az_angle - 90))
 
+    return grng, azi
+
+def enlos2rdr(E, N, los_e, los_n):
+    '''
+    E, N: east and north components (m)
+    los_e, los_n: unit los vector in east and north
+    '''
+    
+    rng = E*los_e + N*los_n
+    grng = rng / np.sqrt(los_e**2 + los_n**2)
+    azi = (E*los_n - N*los_e) / np.sqrt(los_e**2+los_n**2)  #for right looking 
+    #azi = (-E*los_n + N*los_e) / np.sqrt(los_e**2+los_n**2)  #for left looking
+ 
     return grng, azi
 
 def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
@@ -121,3 +240,11 @@ def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     snr_peak_db = np.log10(peak_power / mean_background_power) * 10.0
 
     return snr_peak_db
+
+def predicted_rcs(wavelength, slen):
+    '''
+    estimating maximum analytical radar cross section (RCS) at optimal settings
+    input: wavelength (m), slen (side length of CR; m)
+    output: maximum anlytical rcs (dB)
+    '''
+    return 10*np.log10((4*np.pi*slen**4)/(3*wavelength**2))

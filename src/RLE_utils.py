@@ -4,84 +4,115 @@ import os
 import datetime as dt
 import numpy as np
 from mintpy.utils import readfile
-from mintpy.cli import ifgram_inversion, load_data
+from mintpy.cli import ifgram_inversion, load_data, modify_network
 import pandas as pd
 import fsspec
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 
-def hdf_read(input_hdf):
+def stream_cslc(cslc_url):
+    '''
+    streaming OPERA CSLC in S3 bucket and retrieving CSLC and parameters from HDFs
+    '''
+    pol = cslc_url.split('/')[6].split('_')[-2]
+    # s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
+    with fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
+        try:
+            grid_path = f'data'
+            metadata_path = f'metadata'
+            burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
+            id_path = f'identification'
 
-    grid_path = f'data'
-    metadata_path = f'metadata'
-    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
-    id_path = f'identification'
-    pol = 'VV'
+            with h5py.File(s3f,'r') as h5:
+                print(f"Streaming: {cslc_url.split('/')[6].split('_')[-5][:8]}") 
+                cslc = h5[f'{grid_path}/{pol}'][:]
+                xcoor = h5[f'{grid_path}/x_coordinates'][:]
+                ycoor = h5[f'{grid_path}/y_coordinates'][:]
+                dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+                dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+                epsg = h5[f'{grid_path}/projection'][()].astype(int)
+                sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+                sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+                dims = h5[f'{burstmetadata_path}/shape'][:]
+                bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+                orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+                center_lon, center_lat = h5[f'{burstmetadata_path}/center']
 
-    with h5py.File(input_hdf,'r') as h5:
-        xcoor = h5[f'{grid_path}/x_coordinates'][:]
-        ycoor = h5[f'{grid_path}/y_coordinates'][:]
-        dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-        dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-        epsg = h5[f'{grid_path}/projection'][()].astype(int)
-        slc = h5[f'{grid_path}/{pol}'][:]
-        sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-        dims = h5[f'{burstmetadata_path}/shape'][:]
-        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str) 
-        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-        center_lon, center_lat = h5[f'{burstmetadata_path}/center'] 
-        date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
+        except KeyError:
+            DATA_ROOT = 'science/SENTINEL1'
+            grid_path = f'{DATA_ROOT}/CSLC/grids'
+            metadata_path = f'metadata'
+            burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+            id_path = f'{DATA_ROOT}/identification'
 
-        #deramping and adding flattening phase back
-        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
-        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]        
-        ramp = np.exp(1j*azimuth_carrier_phase)
-        flat_phase = np.exp(1j*flatten_phase)
-        slc = slc*np.conj(ramp)*np.conj(flat_phase)
-        
-    return xcoor, ycoor, dx, dy, epsg, slc, date
-
-def hdf_stream(path_h5):
-
-    s3f = fsspec.open(path_h5, mode='rb', anon=True, default_fill_cache=False)
-    print(f'streaming: {path_h5}')
-
-    grid_path = f'data'
-    metadata_path = f'metadata'
-    burstmetadata_path = f'metadata/processing_information/input_burst_metadata'
-    id_path = f'identification'
-    pol = 'VV'
-
-    with h5py.File(s3f.open(),'r') as h5:
-        xcoor = h5[f'{grid_path}/x_coordinates'][:]
-        ycoor = h5[f'{grid_path}/y_coordinates'][:]
-        dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-        dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-        epsg = h5[f'{grid_path}/projection'][()].astype(int)
-        slc = h5[f'{grid_path}/{pol}'][:]
-        sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-        sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-        dims = h5[f'{burstmetadata_path}/shape'][:]
-        bounding_polygon =h5[f'{id_path}/bounding_polygon'][()].astype(str)
-        orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-        center_lon, center_lat = h5[f'{burstmetadata_path}/center']
-        date = dt.datetime.strptime(sensing_start.astype(str),'%Y-%m-%d %H:%M:%S.%f').strftime('%Y%m%d')
-
-        #deramping and adding flattening phase back
-        azimuth_carrier_phase = h5[f'{grid_path}/azimuth_carrier_phase'][:]
-        flatten_phase = h5[f'{grid_path}/flattening_phase'][:]
-        ramp = np.exp(1j*azimuth_carrier_phase)
-        flat_phase = np.exp(1j*flatten_phase)
-        slc = slc*np.conj(ramp)*np.conj(flat_phase)
-
-    return xcoor, ycoor, dx, dy, epsg, slc, date 
+            with h5py.File(s3f,'r') as h5:
+                # print(f'Streaming: {s3f}')  
+                cslc = h5[f'{grid_path}/{pol}'][:]
+                xcoor = h5[f'{grid_path}/x_coordinates'][:]
+                ycoor = h5[f'{grid_path}/y_coordinates'][:]
+                dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+                dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+                epsg = h5[f'{grid_path}/projection'][()].astype(int)
+                sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+                sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+                dims = h5[f'{burstmetadata_path}/shape'][:]
+                bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+                orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+                center_lon, center_lat = h5[f'{burstmetadata_path}/center']
     
+    return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
+
+def get_s3path(cslc_static_url):
+    burst_id = cslc_static_url.split('/')[-1].split('_')[4]
+    print(f'The static layer provided does not exist. Searching for a static layer within the s3 bucket for {burst_id.upper()}...')
+    buckt = cslc_static_url.split('/')[2]
+    prefx = f"{cslc_static_url.split('/')[3]}/{cslc_static_url.split('/')[4]}/OPERA_L2_CSLC-S1A_IW_{burst_id.upper()}_VV_"
+    client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+    result = client.list_objects(Bucket=buckt, Prefix=prefx, Delimiter = '/')
+
+    path_h5 = []
+    for o in result.get('CommonPrefixes'):
+        path = o.get('Prefix')
+        if path.split('/')[-2].split("_")[-1] == 'layers':
+            path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
+
+    return path_h5
+   
+def stream_static_layers(cslc_static_url):
+    '''
+    los east/north from streamed static layers in S3 bucket
+    '''
+    try:
+        # s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+        with fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
+            with h5py.File(s3f,'r') as h5:
+                static_grid_path = f'data'
+                los_east = h5[f'{static_grid_path}/los_east'][:]
+                los_north = h5[f'{static_grid_path}/los_north'][:]    
+
+    except FileNotFoundError:
+        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+        print(f'New static layer file: {new_cslc_static_url}')
+        # s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+        with fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
+            with h5py.File(s3f,'r') as h5:
+                static_grid_path = f'data'
+                los_east = h5[f'{static_grid_path}/los_east'][:]
+                los_north = h5[f'{static_grid_path}/los_north'][:]    
+
+    return los_east, los_north
+ 
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
+     '''
+     converting transformation parameters to VRT file
+     '''
 
      os.makedirs(outdir,exist_ok=True)
 
      height, width = slc.shape
 
-     slc_file = outdir + '/' + date+'.slc'
+     slc_file = outdir + '/' + str(date)+'.slc'
      slc_vrt = slc_file+'.vrt'
 
      outtype = '<f'  #little endian (float)
@@ -104,7 +135,6 @@ def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
 
 def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,array):
     #generating geotiff file from 2D array
-
     cols = array.shape[1]
     rows = array.shape[0]
     originX = OriginX
@@ -121,10 +151,13 @@ def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,arr
     outband.FlushCache()
 
 def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
-    #offlist: offset filelist
-    #snrlist: snr filelist
-    #out_dir: output directory
-    #snr_thr: snr threshold
+    '''
+    applying simple SBAS method to offsets 
+    offlist: offset filelist
+    snrlist: snr filelist
+    out_dir: output directory
+    snr_thr: snr threshold
+    '''
 
     num_pairs = offlist.shape[0]
 
@@ -206,13 +239,19 @@ def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
 
     return _avg, _std, days
 
-def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
-    #rgofflist: list of range offset files
-    #azofflist: list of azimuth offset files
-    #snrlist: list of snr files
-    #out_dir: output directory
-    #snr_thr: snr threshold
-    #q: quantile threshold for excluding outliers
+def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25,nprocs=2):
+    '''
+    applying MintPy SBAS approach to offsets
+    rgofflist: list of range offset files
+    azofflist: list of azimuth offset files
+    snrlist: list of snr files
+    out_dir: output directory
+    snr_thr: snr threshold
+    q: quantile threshold for excluding outliers
+    '''
+    
+
+    os.chdir(f'{out_dir}')
 
     refd = []
     secd = []
@@ -242,9 +281,9 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     script = f'''
     ##------------------------ smallbaselineApp.cfg ------------------------##
     ########## computing resource configuration
-    mintpy.compute.maxMemory = 10 #[float > 0.0], auto for 4, max memory to allocate in GB
-    mintpy.compute.cluster   = local #[local / slurm / pbs / lsf / none], auto for none, cluster type
-    mintpy.compute.numWorker = 10 #[int > 1 / all], auto for 4 (local) or 40 (non-local), num of workers
+    mintpy.compute.maxMemory = 16 #[float > 0.0], auto for 4, max memory to allocate in GB
+    mintpy.compute.cluster   = auto #[local / slurm / pbs / lsf / none], auto for none, cluster type
+    mintpy.compute.numWorker = {nprocs} #[int > 1 / all], auto for 4 (local) or 40 (non-local), num of workers
     mintpy.compute.config    = auto #[none / slurm / pbs / lsf ], auto for none (same as cluster), config name
     ########## 1. load_data
     mintpy.load.processor      = cosicorr  #[isce, aria, hyp3, gmtsar, snap, gamma, roipac], auto for isce
@@ -262,9 +301,9 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     mintpy.load.ionoFile       = auto  #[path pattern of ionospheric delay       files], optional
     mintpy.load.magFile        = auto  #[path pattern of interferogram magnitude files], optional
     ##---------offset datasets (optional):
-    mintpy.load.azOffFile      = ./{out_dir}/*az_off.tif  #[path pattern of azimuth offset file], optional
-    mintpy.load.rgOffFile      = ./{out_dir}/*rg_off.tif  #[path pattern of range   offset file], optional
-    mintpy.load.offSnrFile     = ./{out_dir}/*snr.tif  #[path pattern of offset signal-to-noise ratio file], optional
+    mintpy.load.azOffFile      = ../offsets/*az_off.tif  #[path pattern of azimuth offset file], optional
+    mintpy.load.rgOffFile      = ../offsets/*rg_off.tif  #[path pattern of range   offset file], optional
+    mintpy.load.offSnrFile     = ../offsets/*snr.tif  #[path pattern of offset signal-to-noise ratio file], optional
 
     ##---------geometry datasets:
     mintpy.load.demFile        = auto  #[path of DEM file]
@@ -283,6 +322,8 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     ## if both yx and lalo are specified, use lalo option unless a) no lookup file AND b) dataset is in radar coord
     mintpy.subset.yx           = auto    #[y0:y1,x0:x1 / no], auto for no
     mintpy.subset.lalo         = auto    #[S:N,W:E / no], auto for no
+    ########## 2. modify_network
+    mintpy.network.startDate       = 20150515  #[20090101 / no], auto for no
     '''
 
     with open(cfgfile,"w") as f:
@@ -294,6 +335,9 @@ def mintpy_SBAS_stats(rgofflist,azofflist,snrlist,out_dir,snr_thr,q=0.25):
     #time-series inversion with MintPy
     tsRgFile = 'timeseriesRg.h5'  #time series hn5 file in range
     tsAzFile = 'timeseriesAz.h5'  #time series h5 file in azimuth
+
+    cmd = f'inputs/offsetStack.h5 -t smallbaselineApp.cfg'
+    modify_network.main(cmd.split())
 
     cmd = f'inputs/offsetStack.h5 -i rangeOffset -w no --min-norm-phase --md offsetSNR --mt {snr_thr} -o {tsRgFile} residualInvRg.h5 numInvOffsetRg.h5'
     ifgram_inversion.main(cmd.split())
