@@ -1,0 +1,8 @@
+#! /usr/bin/env bash
+
+#source /u/trappist-r0/bato/tools/init_files/init_cslc_validation
+#python run1_RLE_stream_bursts_parallel.py --savedir /u/trappist-r0/bato/work/cslc_validation/calval_v02/RLE --burst_ids 't064_135518_iw1' --startDate 20140101 --nproc 50 --validation_bursts validation_data/validation_bursts_priority_GB_v0.2.csv --validation_csv validation_data/table_validation_bursts_priority_v0.2.csv
+#python run1_RLE_stream_bursts_parallel.py --savedir /u/trappist-r0/bato/work/cslc_validation/calval_v02/RLE --burst_ids 't064_135523_iw1' --startDate 20140101 --nproc 50 --validation_bursts validation_data/validation_bursts_priority_GB_v0.2.csv --validation_csv validation_data/table_validation_bursts_priority_v0.2.csv &&
+#python run1_RLE_stream_bursts_parallel.py --savedir /u/trappist-r0/bato/work/cslc_validation/calval_v02/RLE --burst_ids 't064_135523_iw2' --startDate 20140101 --nproc 50 --validation_bursts validation_data/validation_bursts_priority_GB_v0.2.csv --validation_csv validation_data/table_validation_bursts_priority_v0.2.csv &&
+#python run1_RLE_stream_bursts_parallel.py --savedir /u/trappist-r0/bato/work/cslc_validation/calval_v02/RLE --burst_ids 't071_151224_iw2' --startDate 20140101 --nproc 50 --validation_bursts validation_data/validation_bursts_priority_GB_v0.2.csv --validation_csv validation_data/table_validation_bursts_priority_v0.2.csv &&
+#python run1_RLE_stream_bursts_parallel.py --savedir /u/trappist-r0/bato/work/cslc_validation/calval_v02/RLE --burst_ids 't071_151230_iw2' --startDate 20140101 --nproc 50 --validation_bursts validation_data/validation_bursts_priority_GB_v0.2.csv --validation_csv validation_data/table_validation_bursts_priority_v0.2.csv

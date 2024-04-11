@@ -49,10 +49,7 @@ def run_papermill(p):
     cr_network = p[4]
     snr_threshold = p[5]
     prod_version = p[-1]
-    if cr_network == 'Rosamond':
-        solidtide='True'
-    else:
-        solidtide='False'
+    solidtide='False'
     ovsFactor = p[6]
     
     save_dir = f'{p[-2]}/{cr_network}/{burst_id.upper()}'
@@ -99,7 +96,7 @@ def download_crdata(p):
         raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
     
     # Write the crdata to file
-    with open(f"{save_dir}/crdata/crdata_{cslc_url.split('/')[-1][:-3]}.csv", 'wb') as crfile:
+    with open(f"{save_dir}/crdata/crdata_{burst_id.upper()}_{date}.csv", 'wb') as crfile:
         crfile.write(res.content)
         crfile.flush()
     
@@ -163,6 +160,8 @@ def main(inps):
            os.remove(outcsv1)
         if os.path.isfile(outcsv2):
            os.remove(outcsv2)
+
+        validation_bursts_df = validation_bursts_df.dropna().reset_index(drop=True)     # dropping nan from pandas table 
 
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():

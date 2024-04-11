@@ -1,4 +1,4 @@
-###!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import argparse
 import os
@@ -100,6 +100,8 @@ def main(inps):
             # Create folder
             os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
         
+        validation_bursts_df = validation_bursts_df.dropna().reset_index(drop=True)	# dropping nan from pandas table
+
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
