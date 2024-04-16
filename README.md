@@ -15,39 +15,59 @@ Repository of tools intended to address the Cal/Val validation plan for the Leve
 6. [Contributors](#contributors)
 
 ## Setup
+There are two approaches to validate the OPERA Coregistered Single-Look Complex (<B>CSLC</B>) products and ensure the products meet the specified requirements. These include the: (1) Absolute Location Error (<B>ALE</B>) estimation through point-target analysis using corner reflectors network in North America and (2) Relative Location Error (<B>RLE</B>) estimation by cross-correlating pairs of OPERA CSLC products.
 
-Refer to `environment.yml` for an explicit list of software dependencies.
+### 0. Build the environments using conda
+To run the ALE and RLE notebooks we need to create two separate environments and install relevant python dependencies. To install the dependencies, we recommend using __[Conda](https://docs.conda.io/en/latest/index.html)__, a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. Specifically, we recommend using __[Miniforge](https://github.com/conda-forge/miniforge)__, a conda environment manager that uses conda-forge as its default code repo. Alternatively, see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
 
-### Installing With Conda
+### 1. Install the python dependencies to run the ALE notebooks
 
-To install the dependencies we recommend creating a software environment using __[Conda](https://docs.conda.io/en/latest/index.html)__, a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. Specifically, we recommend using __[Miniforge](https://github.com/conda-forge/miniforge)__, a conda environment manager that uses conda-forge as its default code repo. Alternatively, see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
+Refer to `environment_ALE.yml` for an explicit list of software dependencies.
 
-Using conda to install dependencies:
+Use conda to install dependencies via your regular terminal:
 ```
-conda install mamba
-mamba env create -f environment.yml
-conda activate calval_CSLC
+conda install -c conda-forge mamba
+mamba env create -f environment_ALE.yml
+conda activate calval_CSLC_ALE
+python -m ipykernel install --user --name calval_CSLC_ALE
 ```
 
-### Running notebooks
+Whenever you are running the <B>ALE</B> notebooks make sure to activate the `calval_CSLC_ALE` environment by typing the following in your terminal:
+```
+conda activate calval_CSLC_ALE
+```
 
-After successful installation, you may run these tools and visualize outputs and statistics through the provided Jupyter notebooks.
+Don't forget to deactivate the environment before running the RLE notebooks using:
+```
+conda deactivate
+```
 
-But first, you will have to install and initalize the kernel by activating your environment (i.e. `conda activate calval_CSLC`) and then entering the following command:
+### 2. Install PyCuAmpcor and the python dependencies to run the RLE notebooks
+PyCuAmpcor is included in ISCE2, and can be compiled/installed by CMake or SCons, together with ISCE2 or as a standalone version. An installation guide can be found at [isce-framework](https://github.com/isce-framework/isce2#building-isce).
 
-`python -m ipykernel install --user --name calval_CSLC`
+Refer to `environment_RLE.yml` for an explicit list of software dependencies.
 
+Again, use conda to install dependencies via your regular terminal:
+```
+conda install -c conda-forge mamba
+mamba env create -f environment_RLE.yml
+conda activate calval_CSLC_RLE
+python -m ipykernel install --user --name calval_CSLC_RLE
+```
 
-Then after opening the desired notebook in your preferred code editor, make sure to set the kernel to `calval_CSLC`.
+Whenever you are running the <B>RLE</B> notebooks make sure to activate the `calval_CSLC_RLE` environment by typing the following in your terminal:
+```
+conda activate calval_CSLC_RLE
+```
 
-In regards to the use of a specific code editor, we recommend __[Visual Studio Code](https://code.visualstudio.com/)__.
+Don't forget to deactivate the environment before running the ALE notebooks using:
+```
+conda deactivate
+```
 
+### Overview of the Validation Approaches
 
-## Overview of notebooks
-
-The Los Angeles Basin in Southern California is a sedimentary basin characterized by significant structural relief and complex faulting. Introduced below are a suite of notebooks which visualize select CSLC products over this region and evaluate their geolocation accuracy with respect to corner reflectors.
-
-## Absolute Geolocation Error
+## Absolute Location Error
 
 The Absolute Geolocation Error (<B>ALE</B>) can be evaluated using corner reflector (CR) arrays as in [Gisinger et al. 2021]. Specifically, we leverage the OPERA CRs shown in Figure 1 and listed in Table 1. We evaluate the ALE for each CSLC image in a given stack to obtain a time series of offset. For each CSLC image, the image coordinates of the CRs are identified at sub-pixel accuracy using point-target analysis and then compared to field-measured CR coordinates (i.e. [Gisinger et al. 2021], [Schubert et al. 2017]). For example, Figure 2 shows the estimated amplitude peak of the CR arrays for Sentinel-1 A/B for a corner reflector in California; this can be compared to the geolocation of the specific corner reflector and determine if the relevant requirement is met.
 
@@ -78,23 +98,7 @@ The Absolute Geolocation Error (<B>ALE</B>) can be evaluated using corner reflec
 
 For CR arrays, position data can be accessed through CEOS or on their public repositories (e.g. Rosamond CR array) or -- where applicable -- using co-located cGNSS stations.
 
-To characterize ALE, the difference between predicted target locations in Sentinel-1 images and its measured location are estimated in range and azimuth after multiple corrections. All validations are made on corner reflectors in Rosamond, CA.
-<br />
-<br />
-<br />
-<br />
-
-### ALE of COMPASS derived products
-
-ALE assessment performed on CSLC products derived from the COregistered Multi-temPorAl Sar Slc (COMPASS) __[software](https://github.com/opera-adt/COMPASS)__, through the (__[_ALE_.ipynb](https://github.com/OPERA-Cal-Val/calval-CSLC/blob/dev/_ALE_.ipynb)__) notebook. COMPASS is a high level package developed around the InSAR Scientific Computing Environment 3 (__[ISCE3](https://github.com/isce-framework/isce3)__) framework to generate coregistered multi-temporal SAR SLCs in either geographic or radar coordinates.
-<br />
-<br />
-<br />
-<br />
-
-### ALE of provisional OPERA CSLC products
-
-ALE assessment performed directly on OPERA CSLC provisional products, through the (__[ALE.ipynb](https://github.com/OPERA-Cal-Val/calval-CSLC/blob/dev/ALE.ipynb)__) notebook.
+To characterize ALE, the difference between predicted target locations in Sentinel-1 images and its measured location are estimated in range and azimuth after multiple corrections. All validations are made on corner reflectors in North America (i.e., Rosamond, CA and Oklahoma)
 <br />
 <br />
 <br />
@@ -132,14 +136,14 @@ Schubert, A., Miranda, N., Geudtner, D., and Small, D. (2017). Sentinel-1A/B com
 Yunjun, Z., Fattahi, H., Pi, X., Rosen, P., Simons, M., Agram, P., and Aoki, Y. (2022). Range Geolocation Accuracy of C-/L-Band SAR and its Implications for Operational Stack Coregistration. IEEE Transactions on Geoscience and Remote Sensing, 60, 1-19, https://doi.org/10.1109/TGRS.2022.3168509
 
 
-## Key Contributors
+## Key Contributors (Alphabetical)
 
-Jinwoo Kim
+M Grace Bato (JPL)
 <br />
-Liang Kang
+Liang Kang (SMU)
+<br /> 
+Jinwoo Kim (SMU)
 <br />
-M Grace Bato
+Zhong Lu (SMU)
 <br />
-Zhong Lu
-<br />
-Simran Sangha
+Simran Sangha (JPL)

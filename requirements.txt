@@ -36,3 +36,4 @@
  pdfkit
  setuptools
  setuptools_scm
+ Wand
