@@ -7,14 +7,13 @@ from mintpy.utils import readfile
 from mintpy.cli import ifgram_inversion, load_data, modify_network
 import pandas as pd
 import fsspec
+import requests
+from io import BytesIO
 import boto3
 from botocore import UNSIGNED
 from botocore.client import Config
 
 def stream_cslc(cslc_url):
-    '''
-    streaming OPERA CSLC in S3 bucket and retrieving CSLC and parameters from HDFs
-    '''
     pol = cslc_url.split('/')[6].split('_')[-2]
     # s3f = fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False)
     with fsspec.open(cslc_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
@@ -24,43 +23,44 @@ def stream_cslc(cslc_url):
             burstmetadata_path = f'{metadata_path}/processing_information/input_burst_metadata'
             id_path = f'identification'
 
-            with h5py.File(s3f,'r') as h5:
-                print(f"Streaming: {cslc_url.split('/')[6].split('_')[-5][:8]}") 
-                cslc = h5[f'{grid_path}/{pol}'][:]
-                xcoor = h5[f'{grid_path}/x_coordinates'][:]
-                ycoor = h5[f'{grid_path}/y_coordinates'][:]
-                dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-                dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-                epsg = h5[f'{grid_path}/projection'][()].astype(int)
-                sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-                sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-                dims = h5[f'{burstmetadata_path}/shape'][:]
-                bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
-                orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-                center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+                with h5py.File(s3f,'r') as h5:
+                    print(f"Streaming: {cslc_url.split('/')[6].split('_')[-5][:8]}") 
+                    cslc = h5[f'{grid_path}/{pol}'][:]
+                    xcoor = h5[f'{grid_path}/x_coordinates'][:]
+                    ycoor = h5[f'{grid_path}/y_coordinates'][:]
+                    dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+                    dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+                    epsg = h5[f'{grid_path}/projection'][()].astype(int)
+                    sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+                    sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+                    dims = h5[f'{burstmetadata_path}/shape'][:]
+                    bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+                    orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+                    center_lon, center_lat = h5[f'{burstmetadata_path}/center']
 
-        except KeyError:
-            DATA_ROOT = 'science/SENTINEL1'
-            grid_path = f'{DATA_ROOT}/CSLC/grids'
-            metadata_path = f'metadata'
-            burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
-            id_path = f'{DATA_ROOT}/identification'
+            except KeyError:
+                DATA_ROOT = 'science/SENTINEL1'
+                grid_path = f'{DATA_ROOT}/CSLC/grids'
+                metadata_path = f'metadata'
+                burstmetadata_path = f'{DATA_ROOT}/CSLC/{metadata_path}/processing_information/s1_burst_metadata'
+                id_path = f'{DATA_ROOT}/identification'
 
-            with h5py.File(s3f,'r') as h5:
-                # print(f'Streaming: {s3f}')  
-                cslc = h5[f'{grid_path}/{pol}'][:]
-                xcoor = h5[f'{grid_path}/x_coordinates'][:]
-                ycoor = h5[f'{grid_path}/y_coordinates'][:]
-                dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
-                dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
-                epsg = h5[f'{grid_path}/projection'][()].astype(int)
-                sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
-                sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
-                dims = h5[f'{burstmetadata_path}/shape'][:]
-                bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
-                orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
-                center_lon, center_lat = h5[f'{burstmetadata_path}/center']
-    
+                with h5py.File(s3f,'r') as h5:
+                    # print(f'Streaming: {s3f}')  
+                    cslc = h5[f'{grid_path}/{pol}'][:]
+                    xcoor = h5[f'{grid_path}/x_coordinates'][:]
+                    ycoor = h5[f'{grid_path}/y_coordinates'][:]
+                    dx = h5[f'{grid_path}/x_spacing'][()].astype(int)
+                    dy = h5[f'{grid_path}/y_spacing'][()].astype(int)
+                    epsg = h5[f'{grid_path}/projection'][()].astype(int)
+                    sensing_start = h5[f'{burstmetadata_path}/sensing_start'][()].astype(str)
+                    sensing_stop = h5[f'{burstmetadata_path}/sensing_stop'][()].astype(str)
+                    dims = h5[f'{burstmetadata_path}/shape'][:]
+                    bounding_polygon = h5[f'{id_path}/bounding_polygon'][()].astype(str) 
+                    orbit_direction = h5[f'{id_path}/orbit_pass_direction'][()].astype(str)
+                    center_lon, center_lat = h5[f'{burstmetadata_path}/center']
+        
+
     return cslc, xcoor, ycoor, dx, dy, epsg, sensing_start, sensing_stop, dims, bounding_polygon, orbit_direction, center_lon, center_lat
 
 def get_s3path(cslc_static_url):
@@ -78,11 +78,8 @@ def get_s3path(cslc_static_url):
             path_h5.append(f's3://{buckt}/{path}{path.split("/")[-2].split("static")[0]}Static.h5')
 
     return path_h5
-   
+
 def stream_static_layers(cslc_static_url):
-    '''
-    los east/north from streamed static layers in S3 bucket
-    '''
     try:
         # s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
         with fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
@@ -91,18 +88,18 @@ def stream_static_layers(cslc_static_url):
                 los_east = h5[f'{static_grid_path}/los_east'][:]
                 los_north = h5[f'{static_grid_path}/los_north'][:]    
 
-    except FileNotFoundError:
-        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
-        print(f'New static layer file: {new_cslc_static_url}')
-        # s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
-        with fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False) as s3f:
-            with h5py.File(s3f,'r') as h5:
-                static_grid_path = f'data'
-                los_east = h5[f'{static_grid_path}/los_east'][:]
-                los_north = h5[f'{static_grid_path}/los_north'][:]    
+        except FileNotFoundError:
+            new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+            print(f'New static layer file: {new_cslc_static_url}')
+            s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+
+    with h5py.File(s3f,'r') as h5:
+        static_grid_path = f'data'
+        los_east = h5[f'{static_grid_path}/los_east'][:]
+        los_north = h5[f'{static_grid_path}/los_north'][:]
 
     return los_east, los_north
- 
+   
 def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
      '''
      converting transformation parameters to VRT file
@@ -133,6 +130,8 @@ def convert_to_slcvrt(xcoor, ycoor, dx, dy, epsg, slc, date, outdir):
      command = 'gdal_translate ' + slc_file + ' ' + slc_vrt + f' > {outdir}/tmp.LOG'
      os.system(command)
 
+     return
+
 def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,array):
     #generating geotiff file from 2D array
     cols = array.shape[1]
@@ -149,6 +148,8 @@ def array2raster(outrasterfile,OriginX, OriginY, pixelWidth,pixelHeight,epsg,arr
     outRasterSRS.ImportFromEPSG(epsg)
     outRaster.SetProjection(outRasterSRS.ExportToWkt())
     outband.FlushCache()
+
+    return
 
 def simple_SBAS_stats(offlist,snrlist,out_dir,snr_thr):
     '''

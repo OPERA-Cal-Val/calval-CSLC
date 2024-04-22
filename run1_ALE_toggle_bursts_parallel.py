@@ -96,7 +96,7 @@ def download_crdata(p):
         raise SystemExit(f'No corner reflector data found for {burst_id}_{date}. Terminating process.')
     
     # Write the crdata to file
-    with open(f"{save_dir}/crdata/crdata_{cslc_url.split('/')[-1][:-3]}.csv", 'wb') as crfile:
+    with open(f"{save_dir}/crdata/crdata_{burst_id.upper()}_{date}.csv", 'wb') as crfile:
         crfile.write(res.content)
         crfile.flush()
     
@@ -160,6 +160,8 @@ def main(inps):
            os.remove(outcsv1)
         if os.path.isfile(outcsv2):
            os.remove(outcsv2)
+
+        validation_bursts_df = validation_bursts_df.dropna().reset_index(drop=True)     # dropping nan from pandas table 
 
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():

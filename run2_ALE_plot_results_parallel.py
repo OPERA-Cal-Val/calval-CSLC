@@ -25,7 +25,7 @@ def createParser(iargs = None):
     parser.add_argument("--nprocs", dest="nprocs",
                          default=2, type=int, help='Number of processes to run (default: 2)')
     parser.add_argument("--ver", dest="prod_version",
-                    default='v0.2', type=str, help='Product version to validate (default: v0.2)')
+                    default='v1.0', type=str, help='Product version to validate (default: v1.0)')
     return parser.parse_args(args=iargs)
 
 def run_papermill(p):
@@ -55,7 +55,7 @@ def main(inps):
     prod_version = inps.prod_version
 
     # read list of bursts used for validation
-    validation_bursts = Path(f'validation_data/validation_bursts_priority_{prod_version}.csv')
+    validation_bursts = Path(f'validation_data/validation_bursts_{prod_version}.csv')
     if validation_bursts.is_file():
         burstId_df = pd.read_csv(validation_bursts)
     else:

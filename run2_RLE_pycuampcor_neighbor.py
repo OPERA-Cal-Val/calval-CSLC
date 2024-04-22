@@ -109,7 +109,6 @@ def main(inps):
 
     #parameters for gpu processing
     num_gpu = subprocess.getoutput('nvidia-smi --list-gpus | wc -l')
-    #num_gpu = int(num_gpu)
     num_gpu = inps.num_gpu
     print(f'number of GPU: {num_gpu} \n')
 

@@ -1,4 +1,4 @@
-###!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import argparse
 import os
@@ -7,14 +7,14 @@ from pathlib import Path
 import datetime as dt
 import time
 import numpy as np
-
 import fsspec
-
 import geopandas as gpd
 import pandas as pd
 import concurrent.futures
 import timeit
+
 warnings.filterwarnings('ignore')
+
 from src.RLE_utils import stream_cslc, convert_to_slcvrt, stream_static_layers
 
 def createParser(iargs = None):
@@ -56,7 +56,7 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
-
+        
     # read list of bursts used for validation
     validation_bursts = Path(inps.validation_bursts) #Path(valBursts)
     if validation_bursts.is_file():
@@ -100,6 +100,8 @@ def main(inps):
             # Create folder
             os.makedirs(f'{savedir}/{burstId.upper()}/cslc',exist_ok=True)
         
+        validation_bursts_df = validation_bursts_df.dropna().reset_index(drop=True)	# dropping nan from pandas table
+
         params = []
         for val_index, val_row in validation_bursts_df.iterrows():
             if (val_row['burst_id'] == burstId) and (dt.datetime.strptime(str(val_row['date']),'%Y%m%d') >= dt.datetime.strptime(startDate,'%Y%m%d')) \
