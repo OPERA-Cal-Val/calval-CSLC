@@ -135,7 +135,7 @@ SDS_Beta/
 *.png
 *.log
 ALE_TEST.ipynb
-run_batch_ALE_toggle_bursts_parallel_TEST.py
+*.sh
 legacy/
 test/
 update/
