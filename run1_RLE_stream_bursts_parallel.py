@@ -7,14 +7,14 @@ from pathlib import Path
 import datetime as dt
 import time
 import numpy as np
-
 import fsspec
-
 import geopandas as gpd
 import pandas as pd
 import concurrent.futures
 import timeit
+
 warnings.filterwarnings('ignore')
+
 from src.RLE_utils import stream_cslc, convert_to_slcvrt, stream_static_layers
 
 def createParser(iargs = None):
@@ -56,7 +56,7 @@ def main(inps):
     nprocs = inps.nprocs
     startDate = inps.startDate
     endDate = inps.endDate
-
+        
     # read list of bursts used for validation
     validation_bursts = Path(inps.validation_bursts) #Path(valBursts)
     if validation_bursts.is_file():
