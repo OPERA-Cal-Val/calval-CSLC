@@ -340,6 +340,10 @@ def csv_wrapper(input_csv,
     add_text(output_pdf, tbl_title, font_size=28,
              bck_color='white', pos_x=40, pos_y=40)
 
+    # filter out flagged cases to be excluded from pass/fail stats
+    mask = ~df['Burst ID'].str.contains('\*', na=False)
+    df = df[mask]
+
     # Add caption
     passing_rate = (df.iloc[:, 2] == 'PASS').sum() / len(df.iloc[:, 2]) * 100
     passing_rate = int(passing_rate)
@@ -356,7 +360,7 @@ def csv_wrapper(input_csv,
                  bck_color='white', pos_x=76, pos_y=1314)
     if 'RLE' in Path(output_pdf).name:
         add_text(output_pdf, tbl_txt, font_size=22,
-                 bck_color='white', pos_x=76, pos_y=1950)
+                 bck_color='white', pos_x=76, pos_y=1960)
 
     return burst_ids, burst_pg
 
