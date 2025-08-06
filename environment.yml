@@ -48,7 +48,6 @@ dependencies:
  - pytest-cov
  - setuptools
  - setuptools_scm
- 
-   - pip:
+ - pip:
     - pdfkit
     - Wand
