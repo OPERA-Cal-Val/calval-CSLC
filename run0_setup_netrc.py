@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 from netrc import netrc
 from subprocess import Popen
