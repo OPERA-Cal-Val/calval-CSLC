@@ -110,11 +110,10 @@ def get_s3path(s3url):
 def stream_static_layers(cslc_static_url):
     try:
         s3f = fsspec.open(cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
-
-        except FileNotFoundError:
-            new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
-            print(f'New static layer file: {new_cslc_static_url}')
-            s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
+    except FileNotFoundError:
+        new_cslc_static_url = get_s3path(cslc_static_url)[0]        # Get the first static_layer available
+        print(f'New static layer file: {new_cslc_static_url}')
+        s3f = fsspec.open(new_cslc_static_url, mode='rb', anon=True, default_fill_cache=False).open()
 
     with h5py.File(s3f,'r') as h5:
         static_grid_path = f'data'
